@@ -1,6 +1,6 @@
-# ========== Mini-Webserver für Render ==========
 from flask import Flask
 from threading import Thread
+import os
 
 app = Flask('')
 
@@ -12,7 +12,6 @@ def run():
     app.run(host='0.0.0.0', port=8080)
 
 Thread(target=run).start()
-# ===============================================
 
 import discord
 import os
