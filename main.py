@@ -280,9 +280,6 @@ async def austritt(
     await bot.get_channel(CHANNEL_GENERAL_ID).send(embed=embed)
     await interaction.response.send_message("✅ Spezialisierungsinterner Austritt wurde erfolgreich veröffentlicht.", ephemeral=True)
 
-name = await resolve_mentions_to_text(interaction, name)
-ausgestellt_von = await resolve_mentions_to_text(interaction, ausgestellt_von)
-
 @tree.command(name="geburtsurkunde", description="Stellt eine Geburtsurkunde aus.")
 async def geburtsurkunde(
     interaction: discord.Interaction,
