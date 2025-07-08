@@ -284,39 +284,67 @@ async def austritt(
 name = await resolve_mentions_to_text(interaction, name)
 ausgestellt_von = await resolve_mentions_to_text(interaction, ausgestellt_von)
 
-embed = discord.Embed(title="__**Geburtsurkunde Ausgestellt**__ :green_square:", color=discord.Color.green())
-embed.add_field(name="Name der Person", value=name, inline=False)
-embed.add_field(name="Geburtsdatum", value=geburtsdatum, inline=False)
-embed.add_field(name="Ausgestellt von", value=ausgestellt_von, inline=False)
-embed.add_field(name="Geldeingang Fraktionskasse", value="$200,000", inline=False)
-embed.add_field(name="Datum", value=datum, inline=False)
+@tree.command(name="geburtsurkunde", description="Stellt eine Geburtsurkunde aus.")
+async def geburtsurkunde(interaction: discord.Interaction, name: str, geburtsdatum: str, ausgestellt_von: str, datum: str):
+    if not has_required_role(interaction):
+        await send_missing_role_response(interaction)
+        return
+    if not is_allowed_channel(interaction, CHANNEL_GEBURTSURKUNDEN_ID):
+        await send_wrong_channel_response(interaction, CHANNEL_GEBURTSURKUNDEN_ID)
+        return
 
-    await bot.get_channel(CHANNEL_Geburtsurkunden_ID).send(embed=embed)
+    name = await resolve_mentions_to_text(interaction, name)
+    ausgestellt_von = await resolve_mentions_to_text(interaction, ausgestellt_von)
+
+    embed = discord.Embed(title="__**Geburtsurkunde Ausgestellt**__ :green_square:", color=discord.Color.green())
+    embed.add_field(name="Name der Person", value=name, inline=False)
+    embed.add_field(name="Geburtsdatum", value=geburtsdatum, inline=False)
+    embed.add_field(name="Ausgestellt von", value=ausgestellt_von, inline=False)
+    embed.add_field(name="Geldeingang Fraktionskasse", value="$200,000", inline=False)
+    embed.add_field(name="Datum", value=datum, inline=False)
+
+    await bot.get_channel(CHANNEL_GEBURTSURKUNDEN_ID).send(embed=embed)
     await interaction.response.send_message("✅ Geburtsurkunde wurde erfolgreich ausgestellt.", ephemeral=True)
-@tree.command(name="geburtsurkunden_sperre", description="Stellt eine Sperre für eine Geburtsurkunde aus.") async def geburtsurkunden_sperre(interaction: discord.Interaction, name: str, geburtsdatum: str, ausgestellt_von: str, grund: str, datum: str): if not has_required_role(interaction): await send_missing_role_response(interaction) return if not is_allowed_channel(interaction, CHANNEL_Geburtsurkunden_ID): await send_wrong_channel_response(interaction, CHANNEL_Geburtsurkunden_ID) return
 
-name = await resolve_mentions_to_text(interaction, name)
-ausgestellt_von = await resolve_mentions_to_text(interaction, ausgestellt_von)
-grund = await resolve_mentions_to_text(interaction, grund)
+@tree.command(name="geburtsurkunden_sperre", description="Stellt eine Sperre für eine Geburtsurkunde aus.")
+async def geburtsurkunden_sperre(interaction: discord.Interaction, name: str, geburtsdatum: str, ausgestellt_von: str, grund: str, datum: str):
+    if not has_required_role(interaction):
+        await send_missing_role_response(interaction)
+        return
+    if not is_allowed_channel(interaction, CHANNEL_GEBURTSURKUNDEN_ID):
+        await send_wrong_channel_response(interaction, CHANNEL_GEBURTSURKUNDEN_ID)
+        return
 
-embed = discord.Embed(title="__**Geburtsurkunden Sperre**__ :red_square:", color=discord.Color.red())
-embed.add_field(name="Name der Person", value=name, inline=False)
-embed.add_field(name="Geburtsdatum", value=geburtsdatum, inline=False)
-embed.add_field(name="Ausgestellt von", value=ausgestellt_von, inline=False)
-embed.add_field(name="Dauer", value="2 Wochen", inline=False)
-embed.add_field(name="Grund", value=grund, inline=False)
-embed.add_field(name="Datum", value=datum, inline=False)
+    name = await resolve_mentions_to_text(interaction, name)
+    ausgestellt_von = await resolve_mentions_to_text(interaction, ausgestellt_von)
+    grund = await resolve_mentions_to_text(interaction, grund)
 
-    await bot.get_channel(CHANNEL_Geburtsurkunden_ID).send(embed=embed)
+    embed = discord.Embed(title="__**Geburtsurkunden Sperre**__ :red_square:", color=discord.Color.red())
+    embed.add_field(name="Name der Person", value=name, inline=False)
+    embed.add_field(name="Geburtsdatum", value=geburtsdatum, inline=False)
+    embed.add_field(name="Ausgestellt von", value=ausgestellt_von, inline=False)
+    embed.add_field(name="Dauer", value="2 Wochen", inline=False)
+    embed.add_field(name="Grund", value=grund, inline=False)
+    embed.add_field(name="Datum", value=datum, inline=False)
+
+    await bot.get_channel(CHANNEL_GEBURTSURKUNDEN_ID).send(embed=embed)
     await interaction.response.send_message("⛔ Sperre wurde erfolgreich veröffentlicht.", ephemeral=True)
-@tree.command(name="sync", description="Synchronisiere Slash-Commands mit Discord.") async def sync(interaction: discord.Interaction): if SYNC_ROLE_ID not in [role.id for role in interaction.user.roles]: await        send_missing_role_response(interaction) return
 
-await interaction.response.defer(ephemeral=True)
-synced = await tree.sync()
-await interaction.edit_original_response(content=f"✅ Slash-Commands wurden synchronisiert. ({len(synced)} Befehle)")
-print(f"🔄 Slash-Commands synchronisiert: {len(synced)}")
+@tree.command(name="sync", description="Synchronisiere Slash-Commands mit Discord.")
+async def sync(interaction: discord.Interaction):
+    if SYNC_ROLE_ID not in [role.id for role in interaction.user.roles]:
+        await send_missing_role_response(interaction)
+        return
 
-@bot.event async def on_ready(): await tree.sync() print(f"✅ Bot ist online als {bot.user}")
+    await interaction.response.defer(ephemeral=True)
+    synced = await tree.sync()
+    await interaction.edit_original_response(content=f"✅ Slash-Commands wurden synchronisiert. ({len(synced)} Befehle)")
+    print(f"🔄 Slash-Commands synchronisiert: {len(synced)}")
+
+@bot.event
+async def on_ready():
+    await tree.sync()
+    print(f"✅ Bot ist online als {bot.user}")
 
 if __name__ == '__main__':
     stay_alive()
