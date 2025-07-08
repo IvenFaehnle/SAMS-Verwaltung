@@ -285,10 +285,17 @@ name = await resolve_mentions_to_text(interaction, name)
 ausgestellt_von = await resolve_mentions_to_text(interaction, ausgestellt_von)
 
 @tree.command(name="geburtsurkunde", description="Stellt eine Geburtsurkunde aus.")
-async def geburtsurkunde(interaction: discord.Interaction, name: str, geburtsdatum: str, ausgestellt_von: str, datum: str):
+async def geburtsurkunde(
+    interaction: discord.Interaction,
+    name: str,
+    geburtsdatum: str,
+    ausgestellt_von: str,
+    datum: str
+):
     if not has_required_role(interaction):
         await send_missing_role_response(interaction)
         return
+
     if not is_allowed_channel(interaction, CHANNEL_GEBURTSURKUNDEN_ID):
         await send_wrong_channel_response(interaction, CHANNEL_GEBURTSURKUNDEN_ID)
         return
@@ -296,7 +303,10 @@ async def geburtsurkunde(interaction: discord.Interaction, name: str, geburtsdat
     name = await resolve_mentions_to_text(interaction, name)
     ausgestellt_von = await resolve_mentions_to_text(interaction, ausgestellt_von)
 
-    embed = discord.Embed(title="__**Geburtsurkunde Ausgestellt**__ :green_square:", color=discord.Color.green())
+    embed = discord.Embed(
+        title="__**Geburtsurkunde Ausgestellt**__ :green_square:",
+        color=discord.Color.green()
+    )
     embed.add_field(name="Name der Person", value=name, inline=False)
     embed.add_field(name="Geburtsdatum", value=geburtsdatum, inline=False)
     embed.add_field(name="Ausgestellt von", value=ausgestellt_von, inline=False)
