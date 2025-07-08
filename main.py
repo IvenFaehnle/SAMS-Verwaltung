@@ -2,7 +2,6 @@ import discord
 import os
 from discord.ext import commands
 from server import stay_alive
-import audioop
 
 intents = discord.Intents.default()
 intents.message_content = True
