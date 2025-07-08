@@ -311,6 +311,9 @@ await interaction.response.defer(ephemeral=True)
 synced = await tree.sync()
 await interaction.edit_original_response(content=f"✅ Slash-Commands wurden synchronisiert. ({len(synced)} Befehle)")
 print(f"🔄 Slash-Commands synchronisiert: {len(synced)}")
+
 @bot.event async def on_ready(): await tree.sync() print(f"✅ Bot ist online als {bot.user}")
 
-if name == 'main': stay_alive() bot.run(os.environ['DISCORD_TOKEN'])
+if __name__ == '__main__':
+    stay_alive()
+    bot.run(os.environ['DISCORD_TOKEN'])
