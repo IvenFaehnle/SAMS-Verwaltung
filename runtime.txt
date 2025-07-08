@@ -1,3 +1,4 @@
 discord.py==2.3.2
 python-dotenv==1.0.1
 Flask==3.0.3
+python-3.11.8
