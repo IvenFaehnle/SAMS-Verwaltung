@@ -256,7 +256,6 @@ async def beitritt(interaction: discord.Interaction, name: str, spezialisierung:
     await interaction.response.send_message("✅ Spezialisierungsbeitritt wurde erfolgreich veröffentlicht.", ephemeral=True)
 
 @tree.command(name="austritt", description="Trage einen spezialisierungsinternen Austritt ein.") async def austritt(interaction: discord.Interaction, name: str, spezialisierung: str, alter_rang: str, neuer_rang: str, ausgefuehrt_von: str, datum: str, grund: str): if not has_required_role(interaction): await send_missing_role_response(interaction) return if not is_allowed_channel(interaction, CHANNEL_GENERAL_ID): await send_wrong_channel_response(interaction, CHANNEL_GENERAL_ID) return
-
 name = await resolve_mentions_to_text(interaction, name)
 spezialisierung = await resolve_mentions_to_text(interaction, spezialisierung)
 alter_rang = await resolve_mentions_to_text(interaction, alter_rang)
