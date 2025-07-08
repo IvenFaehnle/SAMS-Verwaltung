@@ -320,5 +320,4 @@ print(f"🔄 Slash-Commands synchronisiert: {len(synced)}")
 
 if __name__ == '__main__':
     stay_alive()
-    bot.run(os.environ['MTM4OTcxOTgzMjY4OTExOTQwNA.GNXVoW.kBWhe-td9PJeCLprZg-nKmCbLwuVASP39edFkQ 
-'])
+    bot.run(os.environ['DISCORD_TOKEN'])
