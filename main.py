@@ -255,22 +255,27 @@ async def beitritt(interaction: discord.Interaction, name: str, spezialisierung:
     await bot.get_channel(CHANNEL_GENERAL_ID).send(embed=embed)
     await interaction.response.send_message("✅ Spezialisierungsbeitritt wurde erfolgreich veröffentlicht.", ephemeral=True)
 
-@tree.command(name="austritt", description="Trage einen spezialisierungsinternen Austritt ein.") async def austritt(interaction: discord.Interaction, name: str, spezialisierung: str, alter_rang: str, neuer_rang: str, ausgefuehrt_von: str, datum: str, grund: str): if not has_required_role(interaction): await send_missing_role_response(interaction) return if not is_allowed_channel(interaction, CHANNEL_GENERAL_ID): await send_wrong_channel_response(interaction, CHANNEL_GENERAL_ID) return
-name = await resolve_mentions_to_text(interaction, name)
-spezialisierung = await resolve_mentions_to_text(interaction, spezialisierung)
-alter_rang = await resolve_mentions_to_text(interaction, alter_rang)
-neuer_rang = await resolve_mentions_to_text(interaction, neuer_rang)
-ausgefuehrt_von = await resolve_mentions_to_text(interaction, ausgefuehrt_von)
-grund = await resolve_mentions_to_text(interaction, grund)
+@tree.command(
+    name="austritt",
+    description="Trage einen spezialisierungsinternen Austritt ein."
+)
+async def austritt(
+    interaction: discord.Interaction,
+    name: str,
+    spezialisierung: str,
+    alter_rang: str,
+    neuer_rang: str,
+    ausgefuehrt_von: str,
+    datum: str,
+    grund: str
+):
+    if not has_required_role(interaction):
+        await send_missing_role_response(interaction)
+        return
 
-    embed = discord.Embed(title="__**Spezialisierungsinterner Austritt:**__ <:minus:1043291700644298832>", color=discord.Color.orange())
-    embed.add_field(name="Name der austretenden Person", value=name, inline=False)
-    embed.add_field(name="Betroffene Spezialisierung", value=spezialisierung, inline=False)
-    embed.add_field(name="Alter Rang", value=alter_rang, inline=False)
-    embed.add_field(name="Neuer Rang", value=neuer_rang, inline=False)
-    embed.add_field(name="Name des Ausführenden", value=ausgefuehrt_von, inline=False)
-    embed.add_field(name="Datum", value=datum, inline=False)
-    embed.add_field(name="Grund des Austritts", value=grund, inline=False)
+    if not is_allowed_channel(interaction, CHANNEL_GENERAL_ID):
+        await send_wrong_channel_response(interaction, CHANNEL_GENERAL_ID)
+        return
 
     await bot.get_channel(CHANNEL_GENERAL_ID).send(embed=embed)
     await interaction.response.send_message("✅ Spezialisierungsinterner Austritt wurde erfolgreich veröffentlicht.", ephemeral=True)
