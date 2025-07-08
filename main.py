@@ -355,4 +355,4 @@ async def on_ready():
 
 if __name__ == '__main__':
     stay_alive()
-    bot.run(os.environ['DISCORD_TOKEN'])
+    bot.run(os.environ[' MTM4OTcxOTgzMjY4OTExOTQwNA.GNXVoW.kBWhe-td9PJeCLprZg-nKmCbLwuVASP39edFkQ'])
