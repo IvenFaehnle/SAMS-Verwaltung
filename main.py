@@ -376,6 +376,25 @@ async def austritt(
         await send_wrong_channel_response(interaction, CHANNEL_GENERAL_ID)
         return
 
+    name = await resolve_mentions_to_text(interaction, name)
+    spezialisierung = await resolve_mentions_to_text(interaction, spezialisierung)
+    alter_rang = await resolve_mentions_to_text(interaction, alter_rang)
+    neuer_rang = await resolve_mentions_to_text(interaction, neuer_rang)
+    ausgefuehrt_von = await resolve_mentions_to_text(interaction, ausgefuehrt_von)
+    grund = await resolve_mentions_to_text(interaction, grund)
+
+    embed = discord.Embed(
+        title="__**Spezialisierungsinterner Austritt:**__ 🟧",
+        color=discord.Color.orange()
+    )
+    embed.add_field(name="Name der Person", value=name, inline=False)
+    embed.add_field(name="Spezialisierung", value=spezialisierung, inline=False)
+    embed.add_field(name="Alter Rang", value=alter_rang, inline=False)
+    embed.add_field(name="Neuer Rang", value=neuer_rang, inline=False)
+    embed.add_field(name="Ausgeführt von", value=ausgefuehrt_von, inline=False)
+    embed.add_field(name="Datum", value=datum, inline=False)
+    embed.add_field(name="Grund", value=grund, inline=False)
+
     await bot.get_channel(CHANNEL_GENERAL_ID).send(embed=embed)
     await interaction.response.send_message("✅ Spezialisierungsinterner Austritt wurde erfolgreich veröffentlicht.", ephemeral=True)
 
@@ -451,6 +470,4 @@ async def on_ready():
     await tree.sync()
     print(f"✅ Bot ist online als {bot.user}")
 
-if __name__ == '__main__':
-    stay_alive()
     bot.run(os.environ['MTM4OTcxOTgzMjY4OTExOTQwNA.GNXVoW.kBWhe-td9PJeCLprZg-nKmCbLwuVASP39edFkQ'])
