@@ -255,6 +255,107 @@ async def beitritt(interaction: discord.Interaction, name: str, spezialisierung:
     await bot.get_channel(CHANNEL_GENERAL_ID).send(embed=embed)
     await interaction.response.send_message("✅ Spezialisierungsbeitritt wurde erfolgreich veröffentlicht.", ephemeral=True)
 
+@tree.command(name="beförderungs_sperre", description="Fügt eine Beförderungssperre für eine Person hinzu.")
+async def befoerderungs_sperre(
+    interaction: discord.Interaction,
+    name: str,
+    hinzugefuegt_von: str,
+    dauer: str,
+    datum: str,
+    grund: str,
+    kanal_id: str
+):
+    if interaction.channel.id != 1394763356023296173:
+        await interaction.response.send_message("❌ Dieser Befehl kann nur in einem bestimmten Kanal verwendet werden.", ephemeral=True)
+        return
+
+    await log_command_use(interaction, "beförderungs_sperre", {
+        "name": name,
+        "hinzugefuegt_von": hinzugefuegt_von,
+        "dauer": dauer,
+        "datum": datum,
+        "grund": grund,
+        "kanal_id": kanal_id
+    })
+
+    if not has_required_role(interaction):
+        await send_missing_role_response(interaction)
+        return
+
+    try:
+        channel = bot.get_channel(int(kanal_id))
+        if channel is None:
+            raise ValueError("Ungültige Kanal-ID.")
+    except Exception:
+        await interaction.response.send_message("❌ Ungültige Kanal-ID angegeben.", ephemeral=True)
+        return
+
+    name = await resolve_mentions_to_text(interaction, name)
+    hinzugefuegt_von = await resolve_mentions_to_text(interaction, hinzugefuegt_von)
+    grund = await resolve_mentions_to_text(interaction, grund)
+
+    embed = discord.Embed(
+        title="__**Beförderungssperre:**__ 🚫",
+        color=discord.Color.dark_orange()
+    )
+    embed.add_field(name="Name der Person", value=name, inline=False)
+    embed.add_field(name="Hinzugefügt von", value=hinzugefuegt_von, inline=False)
+    embed.add_field(name="Dauer", value=dauer, inline=False)
+    embed.add_field(name="Datum", value=datum, inline=False)
+    embed.add_field(name="Grund", value=grund, inline=False)
+
+    await channel.send(embed=embed)
+    await interaction.response.send_message("✅ Beförderungssperre wurde erfolgreich veröffentlicht.", ephemeral=True)
+
+@tree.command(name="entsperren", description="Hebt eine bestehende Beförderungssperre auf.")
+async def entsperren(
+    interaction: discord.Interaction,
+    name: str,
+    entsperrt_von: str,
+    datum: str,
+    grund: str,
+    kanal_id: str
+):
+    if interaction.channel.id != 1394763356023296173:
+        await interaction.response.send_message("❌ Dieser Befehl kann nur in einem bestimmten Kanal verwendet werden.", ephemeral=True)
+        return
+
+    await log_command_use(interaction, "entsperren", {
+        "name": name,
+        "entsperrt_von": entsperrt_von,
+        "datum": datum,
+        "grund": grund,
+        "kanal_id": kanal_id
+    })
+
+    if not has_required_role(interaction):
+        await send_missing_role_response(interaction)
+        return
+
+    try:
+        channel = bot.get_channel(int(kanal_id))
+        if channel is None:
+            raise ValueError("Ungültige Kanal-ID.")
+    except Exception:
+        await interaction.response.send_message("❌ Ungültige Kanal-ID angegeben.", ephemeral=True)
+        return
+
+    name = await resolve_mentions_to_text(interaction, name)
+    entsperrt_von = await resolve_mentions_to_text(interaction, entsperrt_von)
+    grund = await resolve_mentions_to_text(interaction, grund)
+
+    embed = discord.Embed(
+        title="__**Beförderungssperre aufgehoben:**__ ✅",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="Name der Person", value=name, inline=False)
+    embed.add_field(name="Entsperrt von", value=entsperrt_von, inline=False)
+    embed.add_field(name="Datum", value=datum, inline=False)
+    embed.add_field(name="Grund", value=grund, inline=False)
+
+    await channel.send(embed=embed)
+    await interaction.response.send_message("✅ Beförderungssperre wurde erfolgreich aufgehoben.", ephemeral=True)
+
 @tree.command(
     name="austritt",
     description="Trage einen spezialisierungsinternen Austritt ein."
