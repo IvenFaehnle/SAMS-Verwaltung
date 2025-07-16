@@ -470,4 +470,4 @@ async def on_ready():
     await tree.sync()
     print(f"✅ Bot ist online als {bot.user}")
 
-    bot.run(os.environ['MTM4OTcxOTgzMjY4OTExOTQwNA.GNXVoW.kBWhe-td9PJeCLprZg-nKmCbLwuVASP39edFkQ'])
+    bot.run(os.environ['MTM4OTcxOTgzMjY4OTExOTQwNA.G8TAhJ.MHRdKb2AZMUBcQznX__V1m3qWne8plmdaCbGP4'])
