@@ -1,2 +1,2 @@
 Key: DISCORD_TOKEN
-Value: MTM2ODk5NjM4MjcyMzI3Njg5Mw.G050zH.Hv48vp5-bAIx2XvRaUxrIkp7aq7qYl5iuz9j4Y
+Value: TOKEN_HERE
