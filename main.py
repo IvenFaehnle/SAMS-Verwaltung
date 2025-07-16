@@ -464,10 +464,12 @@ async def sync(interaction: discord.Interaction):
     synced = await tree.sync()
     await interaction.edit_original_response(content=f"✅ Slash-Commands wurden synchronisiert. ({len(synced)} Befehle)")
     print(f"🔄 Slash-Commands synchronisiert: {len(synced)}")
-
 @bot.event
 async def on_ready():
     await tree.sync()
-    print(f"✅ Bot ist online als {bot.user}")
+    print(f"? Bot ist online als {bot.user}")
 
-    bot.run(os.environ['MTM4OTcxOTgzMjY4OTExOTQwNA.G8TAhJ.MHRdKb2AZMUBcQznX__V1m3qWne8plmdaCbGP4'])
+if __name__ == "__main__":
+    bot.run("MTM2ODk5NjM4MjcyMzI3Njg5Mw.G050zH.Hv48vp5-bAIx2XvRaUxrIkp7aq7qYl5iuz9j4Y")
+
+    ## schmits alter token: bot.run(os.environ['MTM4OTcxOTgzMjY4OTExOTQwNA.G8TAhJ.MHRdKb2AZMUBcQznX__V1m3qWne8plmdaCbGP4'])
