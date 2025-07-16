@@ -470,6 +470,6 @@ async def on_ready():
     print(f"? Bot ist online als {bot.user}")
 
 if __name__ == "__main__":
-    bot.run("MTM2ODk5NjM4MjcyMzI3Njg5Mw.G050zH.Hv48vp5-bAIx2XvRaUxrIkp7aq7qYl5iuz9j4Y")
+    bot.run("TOKEN_HERE")
 
-    ## schmits alter token: bot.run(os.environ['MTM4OTcxOTgzMjY4OTExOTQwNA.G8TAhJ.MHRdKb2AZMUBcQznX__V1m3qWne8plmdaCbGP4'])
+   
