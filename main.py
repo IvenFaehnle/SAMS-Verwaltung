@@ -260,11 +260,10 @@ async def befoerderungs_sperre(
     hinzugefuegt_von: str,
     dauer: str,
     datum: str,
-    grund: str,
-    kanal_id: str
+    grund: str
 ):
-    if interaction.channel.id != 1394763356023296173:
-        await interaction.response.send_message("❌ Dieser Befehl kann nur in einem bestimmten Kanal verwendet werden.", ephemeral=True)
+    if not is_allowed_channel(interaction, PROMOTES_SPERREN):
+        await send_wrong_channel_response(interaction, PROMOTES_SPERREN)
         return
 
     await log_command_use(interaction, "beförderungs_sperre", {
@@ -272,20 +271,11 @@ async def befoerderungs_sperre(
         "hinzugefuegt_von": hinzugefuegt_von,
         "dauer": dauer,
         "datum": datum,
-        "grund": grund,
-        "kanal_id": kanal_id
+        "grund": grund
     })
 
     if not has_required_role(interaction):
         await send_missing_role_response(interaction)
-        return
-
-    try:
-        channel = bot.get_channel(int(kanal_id))
-        if channel is None:
-            raise ValueError("Ungültige Kanal-ID.")
-    except Exception:
-        await interaction.response.send_message("❌ Ungültige Kanal-ID angegeben.", ephemeral=True)
         return
 
     name = await resolve_mentions_to_text(interaction, name)
@@ -302,7 +292,7 @@ async def befoerderungs_sperre(
     embed.add_field(name="Datum", value=datum, inline=False)
     embed.add_field(name="Grund", value=grund, inline=False)
 
-    await channel.send(embed=embed)
+    await bot.get_channel(PROMOTES_SPERREN).send(embed=embed)
     await interaction.response.send_message("✅ Beförderungssperre wurde erfolgreich veröffentlicht.", ephemeral=True)
 
 @tree.command(name="entsperren", description="Hebt eine bestehende Beförderungssperre auf.")
@@ -311,31 +301,21 @@ async def entsperren(
     name: str,
     entsperrt_von: str,
     datum: str,
-    grund: str,
-    kanal_id: str
+    grund: str
 ):
-    if interaction.channel.id != 1394763356023296173:
-        await interaction.response.send_message("❌ Dieser Befehl kann nur in einem bestimmten Kanal verwendet werden.", ephemeral=True)
+    if not is_allowed_channel(interaction, PROMOTES_SPERREN):
+        await send_wrong_channel_response(interaction, PROMOTES_SPERREN)
         return
 
     await log_command_use(interaction, "entsperren", {
         "name": name,
         "entsperrt_von": entsperrt_von,
         "datum": datum,
-        "grund": grund,
-        "kanal_id": kanal_id
+        "grund": grund
     })
 
     if not has_required_role(interaction):
         await send_missing_role_response(interaction)
-        return
-
-    try:
-        channel = bot.get_channel(int(kanal_id))
-        if channel is None:
-            raise ValueError("Ungültige Kanal-ID.")
-    except Exception:
-        await interaction.response.send_message("❌ Ungültige Kanal-ID angegeben.", ephemeral=True)
         return
 
     name = await resolve_mentions_to_text(interaction, name)
@@ -351,7 +331,7 @@ async def entsperren(
     embed.add_field(name="Datum", value=datum, inline=False)
     embed.add_field(name="Grund", value=grund, inline=False)
 
-    await channel.send(embed=embed)
+    await bot.get_channel(PROMOTES_SPERREN).send(embed=embed)
     await interaction.response.send_message("✅ Beförderungssperre wurde erfolgreich aufgehoben.", ephemeral=True)
 
 @tree.command(
