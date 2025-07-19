@@ -68,6 +68,48 @@ async def log_command_use(interaction: discord.Interaction, command_name: str, p
 
     await channel.send(embed=embed)
 
+@tree.command(name="interne_weiterbildung", description="Trage eine interne Weiterbildung ein.")
+async def interne_weiterbildung(
+    interaction: discord.Interaction,
+    name: str,
+    art_der_weiterbildung: str,
+    aktueller_rang: str,
+    ausgefuehrt_von: str,
+    datum: str
+):
+    if not has_required_role(interaction):
+        await send_missing_role_response(interaction)
+        return
+
+    if not is_allowed_channel(interaction, CHANNEL_GENERAL_ID):
+        await send_wrong_channel_response(interaction, CHANNEL_GENERAL_ID)
+        return
+
+    await log_command_use(interaction, "interne_weiterbildung", {
+        "name": name,
+        "art_der_weiterbildung": art_der_weiterbildung,
+        "aktueller_rang": aktueller_rang,
+        "ausgefuehrt_von": ausgefuehrt_von,
+        "datum": datum
+    })
+
+    name = await resolve_mentions_to_text(interaction, name)
+    art_der_weiterbildung = await resolve_mentions_to_text(interaction, art_der_weiterbildung)
+    aktueller_rang = await resolve_mentions_to_text(interaction, aktueller_rang)
+    ausgefuehrt_von = await resolve_mentions_to_text(interaction, ausgefuehrt_von)
+
+    embed = discord.Embed(
+        title="__**Interne Weiterbildung:**__ :mortar_board:",
+        color=discord.Color.teal()
+    )
+    embed.add_field(name="Name der Ausgebildeten Person", value=name, inline=False)
+    embed.add_field(name="Art der Weiterbildung", value=art_der_weiterbildung, inline=False)
+    embed.add_field(name="Aktueller Rang des Ausgebildeten", value=aktueller_rang, inline=False)
+    embed.add_field(name="Name des Auszuführenden", value=ausgefuehrt_von, inline=False)
+    embed.add_field(name="Datum", value=datum, inline=False)
+
+    await bot.get_channel(CHANNEL_GENERAL_ID).send(embed=embed)
+    await interaction.response.send_message("✅ Interne Weiterbildung wurde erfolgreich veröffentlicht.", ephemeral=True)
 
 @tree.command(name="beförderung", description="Fülle eine Beförderung aus.")
 async def befoerderung(interaction: discord.Interaction, name: str, alter_rang: str, neuer_rang: str, ausgefuehrt_von: str, datum: str, grund: str):
