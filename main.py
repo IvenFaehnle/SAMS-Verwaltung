@@ -198,7 +198,7 @@ async def suspendierung(interaction: discord.Interaction, name: str, ausgefuehrt
     ausgefuehrt_von = await resolve_mentions_to_text(interaction, ausgefuehrt_von)
     grund = await resolve_mentions_to_text(interaction, grund)
 
-    embed = discord.Embed(title="__**Suspendierung:**__ 🟨", color=discord.Color.gold())
+    embed = discord.Embed(title="__**Suspendierung:**__ ⌛", color=discord.Color.gold())
     embed.add_field(name="Name der Suspendierten Person:", value=name, inline=False)
     embed.add_field(name="Ausgeführt von", value=ausgefuehrt_von, inline=False)
     embed.add_field(name="Datum", value=datum, inline=False)
