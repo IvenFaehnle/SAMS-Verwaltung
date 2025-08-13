@@ -637,15 +637,18 @@ async def cmd_unmute(ctx, user_id: int):
 @commands.has_permissions(ban_members=True)
 async def cmd_unban(ctx, user_id: int):
     try:
-        banned_users = await ctx.guild.bans()
-        for ban_entry in banned_users:
+        found_user = False
+        async for ban_entry in ctx.guild.bans():
             if ban_entry.user.id == user_id:
                 await ctx.guild.unban(ban_entry.user)
                 await ctx.send(f"{ban_entry.user} wurde entbannt.")
                 code = "N/A"
                 await log_mod_action(ctx.guild, "🔓 Benutzer entbannt", discord.Color.green(), user_id, code, ctx.author, user_mention=str(ban_entry.user))
-                return
-        await ctx.send("Benutzer nicht in der Ban-Liste gefunden.")
+                found_user = True
+                break
+        
+        if not found_user:
+            await ctx.send("Benutzer nicht in der Ban-Liste gefunden.")
     except discord.Forbidden:
         await ctx.send("Ich habe keine Berechtigung, diesen Benutzer zu entbannen.")
     except Exception as e:
@@ -864,19 +867,37 @@ async def on_message(message: discord.Message):
         elif cmd == "s!mute" and len(parts) >= 3:
             try:
                 user_id = int(parts[1].strip("<@!>"))
-                duration = int(parts[2])
+                
+                time_str = parts[2].lower()
+                if time_str.endswith('s'):
+                    duration_minutes = int(time_str[:-1]) / 60  
+                elif time_str.endswith('m'):
+                    duration_minutes = int(time_str[:-1])  
+                elif time_str.endswith('h'):
+                    duration_minutes = int(time_str[:-1]) * 60  
+                elif time_str.endswith('d'):
+                    duration_minutes = int(time_str[:-1]) * 60 * 24  
+                else:
+                    duration_minutes = int(time_str)  
+                    
+                if duration_minutes <= 0:
+                    await message.channel.send("\u274c Dauer muss größer als 0 sein.", delete_after=5)
+                    return
+                    
             except ValueError:
-                await message.channel.send("\u274c Ungültige Eingabe.", delete_after=5)
+                await message.channel.send("\u274c Ungültige Eingabe. Format: `s!mute @user 10m [Grund]`", delete_after=5)
                 await log_error(f"Mute fehlgeschlagen: Ungültige Eingabe `{parts[1:3]}` von {message.author.mention}")
                 return
+                
             reason = " ".join(parts[3:]) or "Kein Grund angegeben"
             member = message.guild.get_member(user_id)
             if not member:
                 await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
                 await log_error(f"Mute fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
                 return
-            await member.timeout(timedelta(minutes=duration), reason=reason)
-            await message.channel.send(f"{member.mention} wurde für {duration} Minuten gemuted.")
+                
+            await member.timeout(timedelta(minutes=duration_minutes), reason=reason)
+            await message.channel.send(f"{member.mention} wurde für {parts[2]} gemuted. Grund: {reason}")
             code = "N/A"
             await log_mod_action(message.guild, "🔇 Mitglied gemutet", discord.Color.gold(), user_id, code, message.author, user_mention=member.mention)
 
@@ -895,12 +916,25 @@ async def on_message(message: discord.Message):
                 await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
                 await log_error(f"Info fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
                 return
-            embed = discord.Embed(title=f"Info zu {member}", color=discord.Color.green())
-            embed.add_field(name="ID", value=member.id, inline=False)
-            embed.add_field(name="Name", value=str(member), inline=False)
-            embed.add_field(name="Status", value=str(member.status), inline=False)
-            embed.add_field(name="Beigetreten", value=str(member.joined_at), inline=False)
-            embed.add_field(name="Erstellt", value=str(member.created_at), inline=False)
+
+            joined_at = member.joined_at.strftime("%d.%m.%Y %H:%M:%S") if member.joined_at else "Unbekannt"
+            created_at = member.created_at.strftime("%d.%m.%Y %H:%M:%S")
+            
+            roles = [role.name for role in member.roles if role.name != "@everyone"]
+            roles_text = ", ".join(roles) if roles else "Keine Rollen"
+            
+            embed = discord.Embed(title="👤 Benutzerinfo", color=discord.Color.blurple())
+            embed.add_field(name="**Name**", value=str(member), inline=False)
+            embed.add_field(name="**ID**", value=str(member.id), inline=False)
+            embed.add_field(name="**Serverbeitritt**", value=joined_at, inline=False)
+            embed.add_field(name="**Account erstellt**", value=created_at, inline=False)
+            embed.add_field(name="**Rollen**", value=roles_text, inline=False)
+            
+            if member.avatar:
+                embed.set_thumbnail(url=member.avatar.url)
+            n
+            embed.timestamp = discord.utils.utcnow()
+            
             await message.channel.send(embed=embed)
 
         elif cmd == "s!unban" and len(parts) == 2:
@@ -909,16 +943,20 @@ async def on_message(message: discord.Message):
             except ValueError:
                 await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
                 return
-            banned_users = await message.guild.bans()
-            for ban_entry in banned_users:
+            
+            found_user = False
+            async for ban_entry in message.guild.bans():
                 if ban_entry.user.id == user_id:
                     await message.guild.unban(ban_entry.user)
                     await message.channel.send(f"{ban_entry.user} wurde entbannt.")
                     code = "N/A"
                     await log_mod_action(message.guild, "🔓 Benutzer entbannt", discord.Color.green(), user_id, code, message.author, user_mention=str(ban_entry.user))
-                    return
-            await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
-            await log_error(f"Unban fehlgeschlagen: Nutzer-ID `{user_id}` nicht in Ban-Liste gefunden von {message.author.mention}")
+                    found_user = True
+                    break
+            
+            if not found_user:
+                await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
+                await log_error(f"Unban fehlgeschlagen: Nutzer-ID `{user_id}` nicht in Ban-Liste gefunden von {message.author.mention}")
 
         elif cmd == "s!unmute" and len(parts) == 2:
             try:
