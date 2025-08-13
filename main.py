@@ -1,13 +1,13 @@
 import discord
 from discord.ext import commands
-from discord.ext import commands
-from server import stay_alive
 import asyncio
 import re
 from datetime import timedelta
 import random
 import string
 import io
+from discord.ext import tasks
+from datetime import datetime
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,7 +16,7 @@ intents.members = True
 bot = commands.Bot(command_prefix='>', intents=intents)
 tree = bot.tree
 
-ALLOWED_ROLE_IDS = [906845737281810443, 1367220175744798721, 943241957654814790, 993615970390261770, 1378086334849093683]
+ALLOWED_ROLE_IDS = [1401565598546133202, 943241957654814790, 993615970390261770, 950844059025539112]
 CHANNEL_GENERAL_ID = 979128951723155557
 CHANNEL_QUIT_ID = 979128097527976017
 CHANNEL_BLACKLIST_ID = 1009520367284531220
@@ -26,6 +26,10 @@ MOD_LOG_CHANNEL_ID = 1328008745963356180
 SYNC_ROLE_ID = 906845737281810443
 LÖSCHEN_LOG_CHANNEL_ID = 1052369974573932626
 PROMOTES_SPERREN = 1394763356023296173
+ERROR_LOG_CHANNEL_ID = 1404465611811061891
+ALLOWED_S_ROLE_IDS = [906845737281810443, 975473680358445136, 1165771712441364651, 1097205524690374716, 1367220175744798721, 943241957654814790]
+STATUSLOG_ID = 1404430746579505232
+
 
 def has_required_role(interaction: discord.Interaction) -> bool:
     return any(role.id in ALLOWED_ROLE_IDS for role in interaction.user.roles)
@@ -57,9 +61,11 @@ async def send_missing_role_response(interaction: discord.Interaction):
 
 async def resolve_mentions_to_text(interaction: discord.Interaction,
                                    text: str) -> str:
+    if not text:
+        return text
     for user_id in [
             int(u_id)
-            for u_id in set(discord.utils.re.findall(r'<@!?(\d+)>', text))
+            for u_id in set(re.findall(r'<@!?(\d+)>', text))
     ]:
         user = interaction.guild.get_member(user_id)
         if user:
@@ -68,7 +74,7 @@ async def resolve_mentions_to_text(interaction: discord.Interaction,
 
     for role_id in [
             int(r_id)
-            for r_id in set(discord.utils.re.findall(r'<@&(\d+)>', text))
+            for r_id in set(re.findall(r'<@&(\d+)>', text))
     ]:
         role = interaction.guild.get_role(role_id)
         if role:
@@ -312,7 +318,6 @@ async def kuendigung(interaction: discord.Interaction, name: str,
     await bot.get_channel(CHANNEL_QUIT_ID).send(embed=embed)
     await interaction.response.send_message(
         "✅ Kündigung wurde erfolgreich veröffentlicht.", ephemeral=True)
-
 
 @tree.command(name="blacklist",
               description="Füge jemanden zur Blacklist hinzu.")
@@ -600,466 +605,456 @@ async def sync(interaction: discord.Interaction):
     print(f"🔄 Slash-Commands synchronisiert: {len(synced)}")
 
 
-CODE_STORAGE_FILE = 'moderation_codes.json'
-
-
-def load_codes():
+@bot.command(name="mute")
+@commands.has_permissions(moderate_members=True)
+async def cmd_mute(ctx, member: discord.Member, minutes: int, *, reason: str = None):
     try:
-        with open(CODE_STORAGE_FILE, 'r') as f:
-            data = json.load(f)
-            return data.get("UNBAN_CODES", {}), data.get("UNMUTE_CODES", {})
-    except:
-        return {}, {}
+        duration = timedelta(minutes=minutes)
+        await member.timeout(duration, reason=reason)
+        await ctx.send(f"{member.mention} wurde für {minutes} Minuten stummgeschaltet. Grund: {reason}")
+        code = "N/A"
+        await log_mod_action(ctx.guild, "🔇 Mitglied gemutet", discord.Color.gold(), member.id, code, ctx.author, user_mention=member.mention)
+    except discord.Forbidden:
+        await ctx.send("Ich habe keine Berechtigung, diesen Benutzer zu stummschalten.")
 
 
-def save_codes():
-    with open(CODE_STORAGE_FILE, 'w') as f:
-        json.dump({
-            "UNBAN_CODES": UNBAN_CODES,
-            "UNMUTE_CODES": UNMUTE_CODES
-        },
-                  f,
-                  indent=4)
-
-
-UNBAN_CODES, UNMUTE_CODES = load_codes()
-
-
-def generate_code(prefix: str, length: int = 5) -> str:
-    code = ''.join(
-        random.choices(string.ascii_uppercase + string.digits, k=length))
-    return f"{prefix}-{code}"
-
-
-class UnbanButton(discord.ui.View):
-
-    def __init__(self, code):
-        super().__init__(timeout=None)
-        self.code = code
-        self.add_item(
-            discord.ui.Button(label=f"Unban ({code})",
-                              style=discord.ButtonStyle.green,
-                              custom_id=f"unban:{code}"))
-
-
-class UnmuteButton(discord.ui.View):
-
-    def __init__(self, code):
-        super().__init__(timeout=None)
-        self.code = code
-        self.add_item(
-            discord.ui.Button(label=f"Unmute ({code})",
-                              style=discord.ButtonStyle.blurple,
-                              custom_id=f"unmute:{code}"))
-
-
-@bot.event
-async def on_interaction(interaction: discord.Interaction):
-    if interaction.type != discord.InteractionType.component:
-        return
-
-    custom_id = interaction.data.get("custom_id", "")
-    if custom_id.startswith("unban:"):
-        code = custom_id.split(":")[1]
-        user_id = UNBAN_CODES.pop(code, None)
-        save_codes()
-        if not user_id:
-            await interaction.response.send_message(
-                "❌ Ungültiger oder abgelaufener Unban-Code.", ephemeral=True)
-            return
-        try:
-            await interaction.guild.unban(discord.Object(id=int(user_id)))
-            await interaction.response.send_message(
-                f"✅ Nutzer mit ID `{user_id}` wurde entbannt.")
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Fehler: {e}",
-                                                    ephemeral=True)
-
-    elif custom_id.startswith("unmute:"):
-        code = custom_id.split(":")[1]
-        user_id = UNMUTE_CODES.pop(code, None)
-        save_codes()
-        if not user_id:
-            await interaction.response.send_message(
-                "❌ Ungültiger oder abgelaufener Unmute-Code.", ephemeral=True)
-            return
-        member = interaction.guild.get_member(int(user_id))
-        if not member:
-            await interaction.response.send_message(
-                "❌ Nutzer ist nicht auf dem Server.", ephemeral=True)
-            return
+@bot.command(name="unmute")
+@commands.has_permissions(moderate_members=True)
+async def cmd_unmute(ctx, user_id: int):
+    member = ctx.guild.get_member(user_id)
+    if member:
         try:
             await member.timeout(None)
-            await interaction.response.send_message(
-                f"✅ Timeout für {member.mention} wurde aufgehoben.")
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Fehler: {e}",
-                                                    ephemeral=True)
+            await ctx.send(f"{member.mention} wurde entstummt.")
+            code = "N/A"
+            await log_mod_action(ctx.guild, "🔊 Timeout aufgehoben", discord.Color.blurple(), user_id, code, ctx.author, user_mention=member.mention)
+        except discord.Forbidden:
+            await ctx.send("Ich habe keine Berechtigung, diesen Benutzer zu entstummen.")
+    else:
+        await ctx.send("Mitglied nicht gefunden.")
 
+
+@bot.command(name="unban")
+@commands.has_permissions(ban_members=True)
+async def cmd_unban(ctx, user_id: int):
+    try:
+        banned_users = await ctx.guild.bans()
+        for ban_entry in banned_users:
+            if ban_entry.user.id == user_id:
+                await ctx.guild.unban(ban_entry.user)
+                await ctx.send(f"{ban_entry.user} wurde entbannt.")
+                code = "N/A"
+                await log_mod_action(ctx.guild, "🔓 Benutzer entbannt", discord.Color.green(), user_id, code, ctx.author, user_mention=str(ban_entry.user))
+                return
+        await ctx.send("Benutzer nicht in der Ban-Liste gefunden.")
+    except discord.Forbidden:
+        await ctx.send("Ich habe keine Berechtigung, diesen Benutzer zu entbannen.")
+    except Exception as e:
+        await ctx.send(f"Fehler beim Entbannen: {e}")
 
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
     if message.content.startswith("s!löschen"):
-                parts = message.content.split()
-                if len(parts) != 2 or not parts[1].isdigit():
-                    await message.channel.send("\u274c Benutzung: `s!löschen <Anzahl>`", delete_after=5)
-                    return
+        parts = message.content.split()
+        if len(parts) != 2 or not parts[1].isdigit():
+            await message.channel.send("\u274c Benutzung: `s!löschen <Anzahl>`", delete_after=5)
+        else:
+            amount = int(parts[1])
+            log_channel = bot.get_channel(LÖSCHEN_LOG_CHANNEL_ID)
 
-                amount = int(parts[1])
-                log_channel = bot.get_channel(LÖSCHEN_LOG_CHANNEL_ID)
+            try:
+                deleted = await message.channel.purge(limit=amount + 1)
+                confirmation = await message.channel.send(f"\u2705 {len(deleted) - 1} Nachricht(en) gelöscht.", delete_after=5)
 
-                try:
-                    deleted = await message.channel.purge(limit=amount + 1)
-                    confirmation = await message.channel.send(f"\u2705 {len(deleted) - 1} Nachricht(en) gelöscht.", delete_after=5)
+                log_lines = []
+                for msg in reversed(deleted[1:]):
+                    timestamp = msg.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                    author = f"{msg.author} ({msg.author.id})"
+                    content = msg.content or "[Leerer Inhalt]"
+                    log_lines.append(f"[{timestamp}] {author}: {content}")
 
+                log_text = "\n".join(log_lines) or "Keine Nachrichten vorhanden."
+                filename = f"gelöschte_nachrichten_{message.channel.name}_{message.created_at.strftime('%Y%m%d_%H%M%S')}.txt"
+                file = discord.File(io.StringIO(log_text), filename=filename)
 
-                    log_lines = []
-                    for msg in reversed(deleted[1:]):
-                        timestamp = msg.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                        author = f"{msg.author} ({msg.author.id})"
-                        content = msg.content or "[Leerer Inhalt]"
-                        log_lines.append(f"[{timestamp}] {author}: {content}")
-
-                    log_text = "\n".join(log_lines) or "Keine Nachrichten vorhanden."
-                    filename = f"gelöschte_nachrichten_{message.channel.name}_{message.created_at.strftime('%Y%m%d_%H%M%S')}.txt"
-                    file = discord.File(io.StringIO(log_text), filename=filename)
-
+                if log_channel:
                     await log_channel.send(
                         content=f"🧹 **{len(deleted) - 1} Nachrichten gelöscht in {message.channel.mention}** von {message.author.mention}",
                         file=file
                     )
 
-                    await asyncio.sleep(5)
-                    await confirmation.delete()
-                except discord.Forbidden:
-                    await message.channel.send("\u274c Keine Berechtigung, Nachrichten zu löschen.", delete_after=5)
-
-
+                await asyncio.sleep(5)
+                await confirmation.delete()
+            except discord.Forbidden:
+                await message.channel.send("\u274c Keine Berechtigung, Nachrichten zu löschen.", delete_after=5)
+            except Exception as e:
+                await message.channel.send(f"\u274c Fehler beim Löschen: {e}", delete_after=5)
 
     await handle_moderation_commands(message)
     await bot.process_commands(message)
 
 
-async def handle_moderation_commands(message):
-    if not any(role.id in ALLOWED_ROLE_IDS for role in message.author.roles):
+async def handle_moderation_commands(message: discord.Message):
+    if not message.content.startswith("s!"):
         return
 
-    content = message.content
-    args = content.split()
-    cmd = args[0].lower()
+    if not any(role.id in ALLOWED_S_ROLE_IDS for role in message.author.roles):
+        await log_error(
+            f"Unerlaubter Befehl `{message.content}` von {message.author.mention} in {message.channel.mention}"
+        )
+        return
 
-    if cmd in ["s!ban", "s!kick", "s!timeout", "s!info"]:
-        if len(args) < 2 or not args[1].isdigit():
-            await message.channel.send("\u274c Ungültige Benutzer-ID.",
-                                       delete_after=5)
-            return
+    parts = message.content.split()
+    cmd = parts[0].lower()
 
-        user_id = int(args[1])
-        reason = " ".join(args[3:] if cmd == "s!timeout" and len(args) > 3 else
-                          args[2:]) or "Kein Grund angegeben"
-        member = message.guild.get_member(user_id)
-        user = member or await bot.fetch_user(user_id)
-        log_channel = bot.get_channel(MOD_LOG_CHANNEL_ID)
-
-        def build_embed(action, color, duration_str=None):
-            embed = discord.Embed(title=action, color=color)
-            embed.add_field(name="Name", value=str(user), inline=False)
-            embed.add_field(name="ID", value=user.id, inline=False)
-            if duration_str:
-                embed.add_field(name="Dauer", value=duration_str, inline=False)
-            embed.add_field(name="Grund", value=reason, inline=False)
-            embed.add_field(name="Ausgeführt von",
-                            value=message.author,
-                            inline=False)
-            embed.set_thumbnail(url=user.display_avatar.url)
-            embed.timestamp = discord.utils.utcnow()
-            return embed
-
-        async def try_dm():
+    try:
+        if cmd == "s!ban" and len(parts) >= 2:
             try:
-                dm_embed = discord.Embed(title="Moderationsaktion",
-                                         color=discord.Color.dark_red())
-                dm_embed.add_field(name="Aktion",
-                                   value=cmd.replace("s!", "").capitalize(),
-                                   inline=True)
-                dm_embed.add_field(name="Grund", value=reason, inline=False)
-                dm_embed.timestamp = discord.utils.utcnow()
-                await user.send(embed=dm_embed)
-            except:
+                user_id = int(parts[1].strip("<@!>"))
+            except ValueError:
+                await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
+                await log_error(f"Ban fehlgeschlagen: Ungültige Nutzer-ID `{parts[1]}` von {message.author.mention}")
+                return
+            reason = " ".join(parts[2:]) or "Kein Grund angegeben"
+            member = message.guild.get_member(user_id)
+            if not member:
+                await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
+                await log_error(f"Ban fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
+                return
+            await member.ban(reason=reason)
+            await message.channel.send(f"{member.mention} wurde gebannt. Grund: {reason}")
+            code = "N/A"
+            await log_mod_action(message.guild, "🔨 Benutzer gebannt", discord.Color.dark_red(), user_id, code, message.author, user_mention=member.mention)
+
+        elif cmd == "s!kick" and len(parts) >= 2:
+            try:
+                user_id = int(parts[1].strip("<@!>"))
+            except ValueError:
+                await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
+                await log_error(f"Kick fehlgeschlagen: Ungültige Nutzer-ID `{parts[1]}` von {message.author.mention}")
+                return
+            reason = " ".join(parts[2:]) or "Kein Grund angegeben"
+            member = message.guild.get_member(user_id)
+            if not member:
+                await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
+                await log_error(f"Kick fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
+                return
+            await member.kick(reason=reason)
+            await message.channel.send(f"{member.mention} wurde gekickt. Grund: {reason}")
+            code = "N/A"
+            await log_mod_action(message.guild, "👢 Benutzer gekickt", discord.Color.orange(), user_id, code, message.author, user_mention=member.mention)
+
+        elif cmd == "s!mute" and len(parts) >= 3:
+            try:
+                user_id = int(parts[1].strip("<@!>"))
+                duration = int(parts[2])
+            except ValueError:
+                await message.channel.send("\u274c Ungültige Eingabe.", delete_after=5)
+                await log_error(f"Mute fehlgeschlagen: Ungültige Eingabe `{parts[1:3]}` von {message.author.mention}")
+                return
+            reason = " ".join(parts[3:]) or "Kein Grund angegeben"
+            member = message.guild.get_member(user_id)
+            if not member:
+                await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
+                await log_error(f"Mute fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
+                return
+            await member.timeout(timedelta(minutes=duration), reason=reason)
+            await message.channel.send(f"{member.mention} wurde für {duration} Minuten gemuted.")
+            code = "N/A"
+            await log_mod_action(message.guild, "🔇 Mitglied gemutet", discord.Color.gold(), user_id, code, message.author, user_mention=member.mention)
+
+        elif cmd == "s!info" and len(parts) == 2:
+            try:
+                user_id = int(parts[1].strip("<@!>"))
+            except ValueError:
+                await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
+                return
+            member = message.guild.get_member(user_id)
+            if not member:
+                await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
+                await log_error(f"Info fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
+                return
+            embed = discord.Embed(title=f"Info zu {member}", color=discord.Color.green())
+            embed.add_field(name="ID", value=member.id, inline=False)
+            embed.add_field(name="Name", value=str(member), inline=False)
+            embed.add_field(name="Status", value=str(member.status), inline=False)
+            embed.add_field(name="Beigetreten", value=str(member.joined_at), inline=False)
+            embed.add_field(name="Erstellt", value=str(member.created_at), inline=False)
+            await message.channel.send(embed=embed)
+
+        elif cmd == "s!unban" and len(parts) == 2:
+            try:
+                user_id = int(parts[1])
+            except ValueError:
+                await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
+                return
+            banned_users = await message.guild.bans()
+            for ban_entry in banned_users:
+                if ban_entry.user.id == user_id:
+                    await message.guild.unban(ban_entry.user)
+                    await message.channel.send(f"{ban_entry.user} wurde entbannt.")
+                    code = "N/A"
+                    await log_mod_action(message.guild, "🔓 Benutzer entbannt", discord.Color.green(), user_id, code, message.author, user_mention=str(ban_entry.user))
+                    return
+            await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
+            await log_error(f"Unban fehlgeschlagen: Nutzer-ID `{user_id}` nicht in Ban-Liste gefunden von {message.author.mention}")
+
+        elif cmd == "s!unmute" and len(parts) == 2:
+            try:
+                user_id = int(parts[1].strip("<@!>"))
+            except ValueError:
+                await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
+                return
+            member = message.guild.get_member(user_id)
+            if not member:
+                await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
+                await log_error(f"Unmute fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
+                return
+            await member.timeout(None)
+            await message.channel.send(f"{member.mention} wurde entmutet.")
+            code = "N/A"
+            await log_mod_action(message.guild, "🔊 Timeout aufgehoben", discord.Color.blurple(), user_id, code, message.author, user_mention=member.mention)
+
+        elif cmd == "s!löschen" and len(parts) == 2 and parts[1].isdigit():
+            amount = int(parts[1])
+            deleted = await message.channel.purge(limit=amount + 1)
+
+            log_channel = bot.get_channel(LÖSCHEN_LOG_CHANNEL_ID)
+            if log_channel:
+                log_lines = []
+                for msg in reversed(deleted[1:]):
+                    timestamp = msg.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                    author = f"{msg.author} ({msg.author.id})"
+                    content = msg.content or "[Leerer Inhalt]"
+                    log_lines.append(f"[{timestamp}] {author}: {content}")
+                log_text = "\n".join(log_lines) or "Keine Nachrichten vorhanden."
+                filename = f"gelöschte_nachrichten_{message.channel.name}_{message.created_at.strftime('%Y%m%d_%H%M%S')}.txt"
+                file = discord.File(io.StringIO(log_text), filename=filename)
+                await log_channel.send(
+                    content=f"🧹 **{len(deleted) - 1} Nachrichten gelöscht in {message.channel.mention}** von {message.author.mention}",
+                    file=file
+                )
+            confirmation = await message.channel.send(f"\u2705 {len(deleted) - 1} Nachricht(en) gelöscht.", delete_after=5)
+
+        elif cmd == "s!stats":
+            try:
+                await message.delete(delay=5)
+            except Exception:
                 pass
 
-        if cmd == "s!ban":
-            try:
-                await message.guild.ban(user, reason=reason)
-                code = generate_code("BAN")
-                UNBAN_CODES[code] = user.id
-                embed = build_embed("🚫 Benutzer gebannt", discord.Color.red())
-                embed.add_field(name="Unban Code",
-                                value=f"`{code}`",
-                                inline=False)
-                await message.channel.send(embed=embed, delete_after=5)
-                await log_channel.send(embed=embed)
-                await asyncio.sleep(5)
-                await message.delete()
-                await try_dm()
-            except Exception as e:
-                await message.channel.send(f"\u274c Fehler beim Bannen: {e}",
-                                           delete_after=5)
+            def get_role_count(role_name: str) -> int:
+                role = discord.utils.get(message.guild.roles, name=role_name)
+                return len(role.members) if role else 0
 
-        elif cmd == "s!kick":
-            if not member:
-                await message.channel.send(
-                    "\u274c Nutzer ist nicht auf dem Server.", delete_after=5)
-                return
-            try:
-                await member.kick(reason=reason)
-                embed = build_embed("🦶 Benutzer gekickt",
-                                    discord.Color.orange())
-                await message.channel.send(embed=embed, delete_after=5)
-                await log_channel.send(embed=embed)
-                await asyncio.sleep(5)
-                await message.delete()
-                await try_dm()
-            except Exception as e:
-                await message.channel.send(f"\u274c Fehler beim Kicken: {e}",
-                                           delete_after=5)
+            stats = {
+                "Los Santos Medical Department Stats 📊": {
+                    "Gesamte Mitglieder": get_role_count("@everyone"),
+                    "LSMD Mitglieder": get_role_count("Los Santos Medical Department")
+                },
+                "Leitungsebene": [
+                    ("Chief Medical Director", get_role_count("Chief Medical Director")),
+                    ("Deputy Chief Medical Director", get_role_count("Deputy Chief Medical Director")),
+                    ("Commissioner", get_role_count("Commissioner"))
+                ],
+                "Führungsebene": [
+                    ("Captain", get_role_count("Captain")),
+                    ("Lieutenant", get_role_count("Lieutenant"))
+                ],
+                "Attending Physician": [
+                    ("Attending Physician", get_role_count("Attending Physician"))
+                ],
+                "Ärztliches Personal": [
+                    ("Senior Fellow Physician", get_role_count("Senior Fellow Physician")),
+                    ("Fellow Physician", get_role_count("Fellow Physician")),
+                    ("Senior Resident", get_role_count("Senior Resident")),
+                    ("Resident", get_role_count("Resident"))
+                ],
+                "Notfallmedizinabteilung": [
+                    ("Senior Paramedic", get_role_count("Senior Paramedic")),
+                    ("Paramedic", get_role_count("Paramedic")),
+                    ("Advanced EMT", get_role_count("Advanced EMT")),
+                    ("Emergency Medical Responser", get_role_count("Emergency Medical Responser")),
+                    ("Emergency Medical Technician", get_role_count("Emergency Medical Technician")),
+                    ("Trainee EMT", get_role_count("Trainee EMT"))
+                ],
+                "Abteilungen": [
+                    ("🏫| Leitung Medical Education", get_role_count("🏫| Leitung Medical Education")),
+                    ("🔪| Leitung General Surgery", get_role_count("🔪| Leitung General Surgery")),
+                    ("🧠| Leitung Psychiatric Department", get_role_count("🧠| Leitung Psychiatric Department")),
+                    ("🚁| Leitung Search and Resuce", get_role_count("🚁| Leitung Search and Resuce")),
+                    ("🚁| SAR  - Instructor", get_role_count("🚁| SAR  - Instructor")),
+                    ("🏫| Medical Education Department", get_role_count("🏫| Medical Education Department")),
+                    ("🔪| General Surgery", get_role_count("🔪| General Surgery")),
+                    ("🔪| Operative License", get_role_count("🔪| Operative License")),
+                    ("🧠| Psychiatric Department", get_role_count("🧠| Psychiatric Department")),
+                    ("🚁| Search and Resuce", get_role_count("🚁| Search and Resuce")),
+                    ("🚤| SAR-Bootsausbildung", get_role_count("🚤| SAR-Bootsausbildung")),
+                    ("Los Santos Medical Department", get_role_count("Los Santos Medical Department")),
+                    ("🏝️ | Abgemeldet", get_role_count("🏝️ | Abgemeldet"))
+                ],
+                "Extras": [
+                    ("Dispatch Operations", get_role_count("Dispatch Operations")),
+                    ("Erfahrender Ausbilder", get_role_count("Erfahrender Ausbilder")),
+                    ("Ausbilder", get_role_count("Ausbilder")),
+                    ("Test-Ausbilder", get_role_count("Test-Ausbilder")),
+                    ("Externe Aushilfe", get_role_count("Externe Aushilfe"))
+                ],
+                "Nebenfunktionen": [
+                    ("Titelgremium", get_role_count("Titelgremium")),
+                    ("Pressesprecher", get_role_count("Pressesprecher")),
+                    ("Personalverwaltung", get_role_count("Personalverwaltung")),
+                    ("Social-Media Verwalter", get_role_count("Social-Media Verwalter")),
+                    ("Fuhrparkverwaltung", get_role_count("Fuhrparkverwaltung")),
+                    ("Parlamentsvertretung", get_role_count("Parlamentsvertretung"))
+                ],
+                "Sonstiges": [
+                    ("LSPD - FE", get_role_count("LSPD - FE")),
+                    ("DOJ - FE", get_role_count("DOJ - FE")),
+                    ("FIB - FE", get_role_count("FIB - FE")),
+                    ("NG - FE", get_role_count("NG - FE")),
+                    ("Neutral - FE", get_role_count("Neutral - FE")),
+                    ("Ehrenrang", get_role_count("Ehrenrang")),
+                    ("Server Booster", get_role_count("Server Booster"))
+                ],
+                "Staatsbürger": [
+                    ("Staatsbürger", get_role_count("Staatsbürger"))
+                ],
+                "Bot´s": [
+                    ("Bot", get_role_count("Bot"))
+                ]
+            }
 
-        elif cmd == "s!timeout":
-            if len(args) < 3:
-                await message.channel.send(
-                    "\u274c Syntax: `s!timeout <UserID> <Dauer> [Grund]`",
-                    delete_after=5)
-                return
-            if not member:
-                await message.channel.send(
-                    "\u274c Nutzer ist nicht auf dem Server.", delete_after=5)
-                return
-            duration_text = args[2].lower()
-            match = re.match(r"(\d+)([smhd])", duration_text)
-            if not match:
-                await message.channel.send(
-                    "\u274c Ungültige Dauer. Nutze z. B. `10m`, `2h`, `1d`",
-                    delete_after=5)
-                return
-            amount, unit = int(match[1]), match[2]
-            delta = {
-                's': timedelta(seconds=amount),
-                'm': timedelta(minutes=amount),
-                'h': timedelta(hours=amount),
-                'd': timedelta(days=amount)
-            }[unit]
-            readable_unit = {
-                's': 'Sekunden',
-                'm': 'Minuten',
-                'h': 'Stunden',
-                'd': 'Tage'
-            }[unit]
-            duration_str = f"{amount} {readable_unit}"
-            try:
-                await member.timeout(delta, reason=reason)
-                code = generate_code("TM")
-                UNMUTE_CODES[code] = member.id
-                embed = build_embed(f"⏳ Timeout für {duration_str}",
-                                    discord.Color.gold(), duration_str)
-                embed.add_field(name="Unmute Code",
-                                value=f"`{code}`",
-                                inline=False)
-                await message.channel.send(embed=embed, delete_after=5)
-                await log_channel.send(embed=embed)
-                await asyncio.sleep(5)
-                await message.delete()
-                await try_dm()
-            except Exception as e:
-                await message.channel.send(f"\u274c Fehler beim Timeout: {e}",
-                                           delete_after=5)
+            embed = discord.Embed(title="📊 Los Santos Medical Department Stats", color=discord.Color.blurple())
+            embed.add_field(
+                name="**Gesamte Mitglieder**",
+                value=str(stats["Los Santos Medical Department Stats 📊"]["Gesamte Mitglieder"]),
+                inline=True
+            )
+            embed.add_field(
+                name="**LSMD Mitglieder**",
+                value=str(stats["Los Santos Medical Department Stats 📊"]["LSMD Mitglieder"]),
+                inline=True
+            )
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
 
-        elif cmd == "s!info":
-            try:
-                embed = discord.Embed(title="👤 Benutzerinfo",
-                                      color=discord.Color.blurple())
-                embed.add_field(name="Name", value=f"{user}", inline=True)
-                embed.add_field(name="ID", value=user.id, inline=True)
-                embed.set_thumbnail(url=user.display_avatar.url)
-                if isinstance(user, discord.Member):
-                    embed.add_field(
-                        name="Serverbeitritt",
-                        value=user.joined_at.strftime('%d.%m.%Y %H:%M:%S'),
-                        inline=False)
-                    embed.add_field(
-                        name="Account erstellt",
-                        value=user.created_at.strftime('%d.%m.%Y %H:%M:%S'),
-                        inline=False)
-                    embed.add_field(name="Rollen",
-                                    value=", ".join([
-                                        r.name for r in user.roles
-                                        if r.name != "@everyone"
-                                    ]),
-                                    inline=False)
-                else:
-                    embed.add_field(
-                        name="Account erstellt",
-                        value=user.created_at.strftime('%d.%m.%Y %H:%M:%S'),
-                        inline=False)
-                embed.timestamp = discord.utils.utcnow()
-                await message.channel.send(embed=embed)
-            except Exception as e:
-                await message.channel.send(
-                    f"\u274c Fehler beim Abrufen der Infos: {e}",
-                    delete_after=5)
+            for section, roles in stats.items():
+                if isinstance(roles, list):
+                    value = "\n".join([f"{role}: {count}" for role, count in roles]) or "Keine Rollen gefunden"
+                    embed.add_field(name=f"__{section}__", value=value, inline=False)
 
-    elif cmd == "s!stats":
-        await message.delete(delay=5)
+            await message.channel.send(embed=embed)
 
-        def get_role_count(role_name):
-            role = discord.utils.get(message.guild.roles, name=role_name)
-            return len(role.members) if role else 0
+    except Exception as exc:
+   
+        await log_error(f"Fehler bei moderativen Befehl `{message.content}` von {message.author} in {message.channel.mention}", exc)
+        try:
+            await message.channel.send("\u274c Es ist ein Fehler aufgetreten.", delete_after=5)
+        except Exception:
+            pass
 
-        stats = {
-            "Los Santos Medical Department Stats 📊": {
-                "Gesamte Mitglieder": get_role_count("@everyone"),
-                "LSMD Mitglieder": get_role_count("Los Santos Medical Department")
-            },
-            "Leitungsebene": [
-                ("Chief Medical Director", get_role_count("Chief Medical Director")),
-                ("Deputy Chief Medical Director", get_role_count("Deputy Chief Medical Director")),
-                ("Commissioner", get_role_count("Commissioner"))
-            ],
-            "Führungsebene": [
-                ("Captain", get_role_count("Captain")),
-                ("Lieutenant", get_role_count("Lieutenant"))
-            ],
-            "Attending Physician": [
-                ("Attending Physician", get_role_count("Attending Physician"))
-            ],
-            "Ärztliches Personal": [
-                ("Senior Fellow Physician", get_role_count("Senior Fellow Physician")),
-                ("Fellow Physician", get_role_count("Fellow Physician")),
-                ("Senior Resident", get_role_count("Senior Resident")),
-                ("Resident", get_role_count("Resident"))
-            ],
-            "Notfallmedizinabteilung": [
-                ("Senior Paramedic", get_role_count("Senior Paramedic")),
-                ("Paramedic", get_role_count("Paramedic")),
-                ("Advanced EMT", get_role_count("Advanced EMT")),
-                ("Emergency Medical Responser", get_role_count("Emergency Medical Responser")),
-                ("Emergency Medical Technician", get_role_count("Emergency Medical Technician")),
-                ("Trainee EMT", get_role_count("Trainee EMT"))
-            ],
-            "Abteilungen": [
-                ("🏫| Leitung Medical Education", get_role_count("🏫| Leitung Medical Education")),
-                ("🔪| Leitung General Surgery", get_role_count("🔪| Leitung General Surgery")),
-                ("🧠| Leitung Psychiatric Department", get_role_count("🧠| Leitung Psychiatric Department")),
-                ("🚁| Leitung Search and Resuce", get_role_count("🚁| Leitung Search and Resuce")),
-                ("🚁| SAR  - Instructor", get_role_count("🚁| SAR  - Instructor")),
-                ("🏫| Medical Education Department", get_role_count("🏫| Medical Education Department")),
-                ("🔪| General Surgery", get_role_count("🔪| General Surgery")),
-                ("🔪| Operative License", get_role_count("🔪| Operative License")),
-                ("🧠| Psychiatric Department", get_role_count("🧠| Psychiatric Department")),
-                ("🚁| Search and Resuce", get_role_count("🚁| Search and Resuce")),
-                ("🚤| SAR-Bootsausbildung", get_role_count("🚤| SAR-Bootsausbildung")),
-                ("Los Santos Medical Department", get_role_count("Los Santos Medical Department")),
-                ("🏝️ | Abgemeldet", get_role_count("🏝️ | Abgemeldet"))
-            ],
-            "Extras": [
-                ("Dispatch Operations", get_role_count("Dispatch Operations")),
-                ("Erfahrender Ausbilder", get_role_count("Erfahrender Ausbilder")),
-                ("Ausbilder", get_role_count("Ausbilder")),
-                ("Test-Ausbilder", get_role_count("Test-Ausbilder")),
-                ("Externe Aushilfe", get_role_count("Externe Aushilfe"))
-            ],
-            "Nebenfunktionen": [
-                ("Titelgremium", get_role_count("Titelgremium")),
-                ("Pressesprecher", get_role_count("Pressesprecher")),
-                ("Personalverwaltung", get_role_count("Personalverwaltung")),
-                ("Social-Media Verwalter", get_role_count("Social-Media Verwalter")),
-                ("Fuhrparkverwaltung", get_role_count("Fuhrparkverwaltung")),
-                ("Parlamentsvertretung", get_role_count("Parlamentsvertretung"))
-            ],
-            "Sonstiges": [
-                ("LSPD - FE", get_role_count("LSPD - FE")),
-                ("DOJ - FE", get_role_count("DOJ - FE")),
-                ("FIB - FE", get_role_count("FIB - FE")),
-                ("NG - FE", get_role_count("NG - FE")),
-                ("Neutral - FE", get_role_count("Neutral - FE")),
-                ("Ehrenrang", get_role_count("Ehrenrang")),
-                ("Server Booster", get_role_count("Server Booster"))
-            ],
-            "Staatsbürger": [
-                ("Staatsbürger", get_role_count("Staatsbürger"))
-            ],
-            "Bot´s": [
-                ("Bot", get_role_count("Bot"))
-            ]
-        }
 
-        embed = discord.Embed(title="📊 Los Santos Medical Department Stats", color=discord.Color.blurple())
-        embed.add_field(
-            name="**Gesamte Mitglieder**",
-            value=str(stats["Los Santos Medical Department Stats 📊"]["Gesamte Mitglieder"]),
-            inline=True
-        )
-        embed.add_field(
-            name="**LSMD Mitglieder**",
-            value=str(stats["Los Santos Medical Department Stats 📊"]["LSMD Mitglieder"]),
-            inline=True
-        )
-        embed.add_field(name="\u200b", value="\u200b", inline=False)  # Spacer
+async def log_error(message: str, exception: Exception = None):
+    channel = bot.get_channel(ERROR_LOG_CHANNEL_ID)
+    if not channel:
+        print("❌ Fehlerlog-Channel nicht gefunden.")
+        if exception:
+            print("Exception:", exception)
+        return
 
-        for section, roles in stats.items():
-            if isinstance(roles, list):
-                value = "\n".join([f"{role}: {count}" for role, count in roles]) or "Keine Rollen gefunden"
-                embed.add_field(name=f"__{section}__", value=value, inline=False)
+    embed = discord.Embed(
+        title="⚠️ Fehler oder unerlaubter Zugriff",
+        description=message,
+        color=discord.Color.red()
+    )
+    if exception:
+        embed.add_field(name="Fehler", value=str(exception), inline=False)
+    embed.timestamp = discord.utils.utcnow()
+    await channel.send(embed=embed)
 
-        await message.channel.send(embed=embed)
+
+@bot.event
+async def on_command_error(ctx, error):
     
-    elif cmd == "s!unban":
-        if len(args) < 2:
-            await message.channel.send("⚠️ Benutze: `s!unban <Code>`",
-                                       delete_after=5)
-            return
-        code = args[1].upper()
-        user_id = UNBAN_CODES.pop(code, None)
-        if not user_id:
-            await message.channel.send(
-                "❌ Ungültiger oder abgelaufener Unban-Code.", delete_after=5)
-            return
-        try:
-            await message.guild.unban(discord.Object(id=user_id))
-            await message.channel.send(
-                f"✅ Ban für Nutzer-ID `{user_id}` wurde aufgehoben mit Code `{code}`."
-            )
-        except Exception as e:
-            await message.channel.send(f"❌ Fehler beim Unbannen: {e}",
-                                       delete_after=5)
+    try:
+        if isinstance(ctx, commands.Context):
+            await log_error(f"Fehler bei Command `{ctx.message.content}` von {ctx.author} in {ctx.channel.mention}", error)
+    except Exception:
+       
+        await log_error("Fehler beim Verarbeiten eines Befehls.", error)
 
-    elif cmd == "s!unmute":
-        if len(args) < 2:
-            await message.channel.send("⚠️ Benutze: `s!unmute <Code>`",
-                                       delete_after=5)
-            return
-        code = args[1].upper()
-        user_id = UNMUTE_CODES.pop(code, None)
-        if not user_id:
-            await message.channel.send(
-                "❌ Ungültiger oder abgelaufener Unmute-Code.", delete_after=5)
-            return
-        member = message.guild.get_member(user_id)
-        if not member:
-            await message.channel.send("❌ Nutzer ist nicht auf dem Server.",
-                                       delete_after=5)
-            return
-        try:
-            await member.timeout(None)
-            await message.channel.send(
-                f"✅ Timeout für {member.mention} wurde aufgehoben mit Code `{code}`."
-            )
-        except Exception as e:
-            await message.channel.send(
-                f"❌ Fehler beim Aufheben des Timeouts: {e}", delete_after=5)
 
+@bot.event
+async def on_ready():
+    try:
+        await tree.sync()
+    except Exception:
+        pass
+    print(f"\u2705 Bot ist online als {bot.user}")
+
+
+async def log_mod_action(guild, title, color, user_id, code, executor, user_mention=None):
+    """
+    Schickt einen einheitlichen Log-Eintrag ins Mod-Log.
+    signature preserved: (guild, title, color, user_id, code, executor, user_mention=None)
+    """
+    log_channel = guild.get_channel(MOD_LOG_CHANNEL_ID)
+    if not log_channel:
+        return
+
+    embed = discord.Embed(title=title, color=color)
+    embed.add_field(name="Nutzer", value=user_mention if user_mention else f"`{user_id}`", inline=False)
+    embed.add_field(name="Nutzer-ID", value=str(user_id), inline=False)
+    embed.add_field(name="Code", value=str(code), inline=False)
+    embed.add_field(name="Ausgeführt von", value=str(executor), inline=False)
+    embed.timestamp = discord.utils.utcnow()
+
+    await log_channel.send(embed=embed)
+
+
+version_file = "version.txt"
+
+def load_version():
+    if os.path.exists(version_file):
+        with open(version_file, "r") as f:
+            return f.read().strip()
+    return "1.0.0"
+
+def save_version(version):
+    with open(version_file, "w") as f:
+        f.write(version)
+
+bot_version = load_version()  
+
+@tasks.loop(minutes=10)
+async def status_log():
+    global bot_version
+    channel = bot.get_channel(STATUSLOG_ID)
+    if channel:
+        now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+
+        await channel.send(f"[{now}] Starting sync...\nVersion: {bot_version}")
+
+        major, minor, patch = map(int, bot_version.split('.'))
+        patch += 1
+        if patch > 9:
+            patch = 0
+            minor += 1
+        if minor > 9:
+            minor = 0
+            major += 1
+        bot_version = f"{major}.{minor}.{patch}"
+
+        save_version(bot_version)
+
+        await asyncio.sleep(2)
+
+        now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+
+        await channel.send(f"[{now}] Sync completed!\nVersion: {bot_version}")
+        
 @bot.event
 async def on_ready():
     await tree.sync()
