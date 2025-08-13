@@ -30,8 +30,6 @@ ERROR_LOG_CHANNEL_ID = 1404465611811061891
 ALLOWED_S_ROLE_IDS = [906845737281810443, 975473680358445136, 1165771712441364651, 1097205524690374716, 1367220175744798721, 943241957654814790]
 STATUSLOG_ID = 1404430746579505232
 
-
-
 def has_required_role(interaction: discord.Interaction) -> bool:
     return any(role.id in ALLOWED_ROLE_IDS for role in interaction.user.roles)
 
@@ -658,7 +656,8 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
-    cmd = message.content.strip().lower()
+
+    cmd_content = message.content.strip().lower()
 
     if message.content.startswith("s!löschen"):
         parts = message.content.split()
@@ -696,13 +695,14 @@ async def on_message(message: discord.Message):
             except Exception as e:
                 await message.channel.send(f"\u274c Fehler beim Löschen: {e}", delete_after=5)
 
-    if cmd == "s!stats":
+
+    if cmd_content == "s!stats":
         if not any(role.id in ALLOWED_S_ROLE_IDS for role in message.author.roles):
             await log_error(
                 f"Unerlaubter Befehl `{message.content}` von {message.author.mention} in {message.channel.mention}"
             )
             return
-        
+
         try:
             await message.delete(delay=5)
         except Exception:
@@ -811,12 +811,8 @@ async def on_message(message: discord.Message):
         await message.channel.send(embed=embed)
         return
 
-    await handle_moderation_commands(message)
-    await bot.process_commands(message)
 
-
-async def handle_moderation_commands(message: discord.Message):
-    if not message.content.startswith("s!"):
+    if not cmd_content.startswith("s!"):
         return
 
     if not any(role.id in ALLOWED_S_ROLE_IDS for role in message.author.roles):
@@ -886,9 +882,13 @@ async def handle_moderation_commands(message: discord.Message):
 
         elif cmd == "s!info" and len(parts) == 2:
             try:
-                user_id = int(parts[1].strip("<@!>"))
+                user_input = parts[1].strip()
+                if user_input.startswith('<@') and user_input.endswith('>'):
+                    user_id = int(user_input.strip('<@!>'))
+                else:
+                    user_id = int(user_input)
             except ValueError:
-                await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
+                await message.channel.send("\u274c Ungültige Nutzer-ID oder Mention.", delete_after=5)
                 return
             member = message.guild.get_member(user_id)
             if not member:
@@ -922,9 +922,13 @@ async def handle_moderation_commands(message: discord.Message):
 
         elif cmd == "s!unmute" and len(parts) == 2:
             try:
-                user_id = int(parts[1].strip("<@!>"))
+                user_input = parts[1].strip()
+                if user_input.startswith('<@') and user_input.endswith('>'):
+                    user_id = int(user_input.strip('<@!>'))
+                else:
+                    user_id = int(user_input)
             except ValueError:
-                await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
+                await message.channel.send("\u274c Ungültige Nutzer-ID oder Mention.", delete_after=5)
                 return
             member = message.guild.get_member(user_id)
             if not member:
@@ -936,36 +940,20 @@ async def handle_moderation_commands(message: discord.Message):
             code = "N/A"
             await log_mod_action(message.guild, "🔊 Timeout aufgehoben", discord.Color.blurple(), user_id, code, message.author, user_mention=member.mention)
 
-        elif cmd == "s!löschen" and len(parts) == 2 and parts[1].isdigit():
-            amount = int(parts[1])
-            deleted = await message.channel.purge(limit=amount + 1)
-
-            log_channel = bot.get_channel(LÖSCHEN_LOG_CHANNEL_ID)
-            if log_channel:
-                log_lines = []
-                for msg in reversed(deleted[1:]):
-                    timestamp = msg.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                    author = f"{msg.author} ({msg.author.id})"
-                    content = msg.content or "[Leerer Inhalt]"
-                    log_lines.append(f"[{timestamp}] {author}: {content}")
-                log_text = "\n".join(log_lines) or "Keine Nachrichten vorhanden."
-                filename = f"gelöschte_nachrichten_{message.channel.name}_{message.created_at.strftime('%Y%m%d_%H%M%S')}.txt"
-                file = discord.File(io.StringIO(log_text), filename=filename)
-                await log_channel.send(
-                    content=f"🧹 **{len(deleted) - 1} Nachrichten gelöscht in {message.channel.mention}** von {message.author.mention}",
-                    file=file
-                )
-            confirmation = await message.channel.send(f"\u2705 {len(deleted) - 1} Nachricht(en) gelöscht.", delete_after=5)
-
-        
+        else:     
+            await log_error(f"Unbekannter s! Befehl `{message.content}` von {message.author.mention} in {message.channel.mention}")
+            await message.channel.send("\u274c Unbekannter Befehl.", delete_after=5)
 
     except Exception as exc:
-   
+
         await log_error(f"Fehler bei moderativen Befehl `{message.content}` von {message.author} in {message.channel.mention}", exc)
         try:
             await message.channel.send("\u274c Es ist ein Fehler aufgetreten.", delete_after=5)
         except Exception:
             pass
+
+
+    await bot.process_commands(message)
 
 
 async def log_error(message: str, exception: Exception = None):
@@ -989,12 +977,12 @@ async def log_error(message: str, exception: Exception = None):
 
 @bot.event
 async def on_command_error(ctx, error):
-    
+
     try:
         if isinstance(ctx, commands.Context):
             await log_error(f"Fehler bei Command `{ctx.message.content}` von {ctx.author} in {ctx.channel.mention}", error)
     except Exception:
-       
+
         await log_error("Fehler beim Verarbeiten eines Befehls.", error)
 
 
@@ -1005,6 +993,10 @@ async def on_ready():
     except Exception:
         pass
     print(f"\u2705 Bot ist online als {bot.user}")
+
+
+    if not status_log.is_running():
+        status_log.start()
 
 
 async def log_mod_action(guild, title, color, user_id, code, executor, user_mention=None):
@@ -1047,7 +1039,16 @@ async def status_log():
     if channel:
         now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
-        await channel.send(f"[{now}] Starting sync...\nVersion: {bot_version}")
+        start_embed = discord.Embed(
+            title="__LSMD Verwaltung__",
+            description="Starting sync...",
+            color=discord.Color.orange()
+        )
+        start_embed.add_field(name="Zeitpunkt", value=now, inline=True)
+        start_embed.add_field(name="Version", value=bot_version, inline=True)
+        start_embed.timestamp = discord.utils.utcnow()
+
+        await channel.send(embed=start_embed)
 
         major, minor, patch = map(int, bot_version.split('.'))
         patch += 1
@@ -1065,7 +1066,21 @@ async def status_log():
 
         now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
-        await channel.send(f"[{now}] Sync completed!\nVersion: {bot_version}")
+
+        complete_embed = discord.Embed(
+            title="__LSMD Verwaltung__",
+            description="Sync completed!",
+            color=discord.Color.green()
+        )
+        complete_embed.add_field(name="Zeitpunkt", value=now, inline=True)
+        complete_embed.add_field(name="Neue Version", value=bot_version, inline=True)
+        complete_embed.timestamp = discord.utils.utcnow()
+
+        await channel.send(embed=complete_embed)
+
+@status_log.before_loop
+async def before_status_log():
+    await bot.wait_until_ready()
         
 @bot.event
 async def on_ready():
