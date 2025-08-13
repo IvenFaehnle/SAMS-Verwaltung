@@ -31,6 +31,7 @@ ALLOWED_S_ROLE_IDS = [906845737281810443, 975473680358445136, 116577171244136465
 STATUSLOG_ID = 1404430746579505232
 
 
+
 def has_required_role(interaction: discord.Interaction) -> bool:
     return any(role.id in ALLOWED_ROLE_IDS for role in interaction.user.roles)
 
@@ -657,6 +658,8 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
+    cmd = message.content.strip().lower()
+
     if message.content.startswith("s!löschen"):
         parts = message.content.split()
         if len(parts) != 2 or not parts[1].isdigit():
@@ -692,6 +695,121 @@ async def on_message(message: discord.Message):
                 await message.channel.send("\u274c Keine Berechtigung, Nachrichten zu löschen.", delete_after=5)
             except Exception as e:
                 await message.channel.send(f"\u274c Fehler beim Löschen: {e}", delete_after=5)
+
+    if cmd == "s!stats":
+        if not any(role.id in ALLOWED_S_ROLE_IDS for role in message.author.roles):
+            await log_error(
+                f"Unerlaubter Befehl `{message.content}` von {message.author.mention} in {message.channel.mention}"
+            )
+            return
+        
+        try:
+            await message.delete(delay=5)
+        except Exception:
+            pass
+
+        def get_role_count(role_name: str) -> int:
+            role = discord.utils.get(message.guild.roles, name=role_name)
+            return len(role.members) if role else 0
+
+        stats = {
+            "Los Santos Medical Department Stats 📊": {
+                "Gesamte Mitglieder": get_role_count("@everyone"),
+                "LSMD Mitglieder": get_role_count("Los Santos Medical Department")
+            },
+            "Leitungsebene": [
+                ("Chief Medical Director", get_role_count("Chief Medical Director")),
+                ("Deputy Chief Medical Director", get_role_count("Deputy Chief Medical Director")),
+                ("Commissioner", get_role_count("Commissioner"))
+            ],
+            "Führungsebene": [
+                ("Captain", get_role_count("Captain")),
+                ("Lieutenant", get_role_count("Lieutenant"))
+            ],
+            "Attending Physician": [
+                ("Attending Physician", get_role_count("Attending Physician"))
+            ],
+            "Ärztliches Personal": [
+                ("Senior Fellow Physician", get_role_count("Senior Fellow Physician")),
+                ("Fellow Physician", get_role_count("Fellow Physician")),
+                ("Senior Resident", get_role_count("Senior Resident")),
+                ("Resident", get_role_count("Resident"))
+            ],
+            "Notfallmedizinabteilung": [
+                ("Senior Paramedic", get_role_count("Senior Paramedic")),
+                ("Paramedic", get_role_count("Paramedic")),
+                ("Advanced EMT", get_role_count("Advanced EMT")),
+                ("Emergency Medical Responser", get_role_count("Emergency Medical Responser")),
+                ("Emergency Medical Technician", get_role_count("Emergency Medical Technician")),
+                ("Trainee EMT", get_role_count("Trainee EMT"))
+            ],
+            "Abteilungen": [
+                ("🏫| Leitung Medical Education", get_role_count("🏫| Leitung Medical Education")),
+                ("🔪| Leitung General Surgery", get_role_count("🔪| Leitung General Surgery")),
+                ("🧠| Leitung Psychiatric Department", get_role_count("🧠| Leitung Psychiatric Department")),
+                ("🚁| Leitung Search and Resuce", get_role_count("🚁| Leitung Search and Resuce")),
+                ("🚁| SAR  - Instructor", get_role_count("🚁| SAR  - Instructor")),
+                ("🏫| Medical Education Department", get_role_count("🏫| Medical Education Department")),
+                ("🔪| General Surgery", get_role_count("🔪| General Surgery")),
+                ("🔪| Operative License", get_role_count("🔪| Operative License")),
+                ("🧠| Psychiatric Department", get_role_count("🧠| Psychiatric Department")),
+                ("🚁| Search and Resuce", get_role_count("🚁| Search and Resuce")),
+                ("🚤| SAR-Bootsausbildung", get_role_count("🚤| SAR-Bootsausbildung")),
+                ("Los Santos Medical Department", get_role_count("Los Santos Medical Department")),
+                ("🏝️ | Abgemeldet", get_role_count("🏝️ | Abgemeldet"))
+            ],
+            "Extras": [
+                ("Dispatch Operations", get_role_count("Dispatch Operations")),
+                ("Erfahrender Ausbilder", get_role_count("Erfahrender Ausbilder")),
+                ("Ausbilder", get_role_count("Ausbilder")),
+                ("Test-Ausbilder", get_role_count("Test-Ausbilder")),
+                ("Externe Aushilfe", get_role_count("Externe Aushilfe"))
+            ],
+            "Nebenfunktionen": [
+                ("Titelgremium", get_role_count("Titelgremium")),
+                ("Pressesprecher", get_role_count("Pressesprecher")),
+                ("Personalverwaltung", get_role_count("Personalverwaltung")),
+                ("Social-Media Verwalter", get_role_count("Social-Media Verwalter")),
+                ("Fuhrparkverwaltung", get_role_count("Fuhrparkverwaltung")),
+                ("Parlamentsvertretung", get_role_count("Parlamentsvertretung"))
+            ],
+            "Sonstiges": [
+                ("LSPD - FE", get_role_count("LSPD - FE")),
+                ("DOJ - FE", get_role_count("DOJ - FE")),
+                ("FIB - FE", get_role_count("FIB - FE")),
+                ("NG - FE", get_role_count("NG - FE")),
+                ("Neutral - FE", get_role_count("Neutral - FE")),
+                ("Ehrenrang", get_role_count("Ehrenrang")),
+                ("Server Booster", get_role_count("Server Booster"))
+            ],
+            "Staatsbürger": [
+                ("Staatsbürger", get_role_count("Staatsbürger"))
+            ],
+            "Bot´s": [
+                ("Bot", get_role_count("Bot"))
+            ]
+        }
+
+        embed = discord.Embed(title="📊 Los Santos Medical Department Stats", color=discord.Color.blurple())
+        embed.add_field(
+            name="**Gesamte Mitglieder**",
+            value=str(stats["Los Santos Medical Department Stats 📊"]["Gesamte Mitglieder"]),
+            inline=True
+        )
+        embed.add_field(
+            name="**LSMD Mitglieder**",
+            value=str(stats["Los Santos Medical Department Stats 📊"]["LSMD Mitglieder"]),
+            inline=True
+        )
+        embed.add_field(name="\u200b", value="\u200b", inline=False)
+
+        for section, roles in stats.items():
+            if isinstance(roles, list):
+                value = "\n".join([f"{role}: {count}" for role, count in roles]) or "Keine Rollen gefunden"
+                embed.add_field(name=f"__{section}__", value=value, inline=False)
+
+        await message.channel.send(embed=embed)
+        return
 
     await handle_moderation_commands(message)
     await bot.process_commands(message)
@@ -839,113 +957,7 @@ async def handle_moderation_commands(message: discord.Message):
                 )
             confirmation = await message.channel.send(f"\u2705 {len(deleted) - 1} Nachricht(en) gelöscht.", delete_after=5)
 
-        elif cmd == "s!stats":
-            try:
-                await message.delete(delay=5)
-            except Exception:
-                pass
-
-            def get_role_count(role_name: str) -> int:
-                role = discord.utils.get(message.guild.roles, name=role_name)
-                return len(role.members) if role else 0
-
-            stats = {
-                "Los Santos Medical Department Stats 📊": {
-                    "Gesamte Mitglieder": get_role_count("@everyone"),
-                    "LSMD Mitglieder": get_role_count("Los Santos Medical Department")
-                },
-                "Leitungsebene": [
-                    ("Chief Medical Director", get_role_count("Chief Medical Director")),
-                    ("Deputy Chief Medical Director", get_role_count("Deputy Chief Medical Director")),
-                    ("Commissioner", get_role_count("Commissioner"))
-                ],
-                "Führungsebene": [
-                    ("Captain", get_role_count("Captain")),
-                    ("Lieutenant", get_role_count("Lieutenant"))
-                ],
-                "Attending Physician": [
-                    ("Attending Physician", get_role_count("Attending Physician"))
-                ],
-                "Ärztliches Personal": [
-                    ("Senior Fellow Physician", get_role_count("Senior Fellow Physician")),
-                    ("Fellow Physician", get_role_count("Fellow Physician")),
-                    ("Senior Resident", get_role_count("Senior Resident")),
-                    ("Resident", get_role_count("Resident"))
-                ],
-                "Notfallmedizinabteilung": [
-                    ("Senior Paramedic", get_role_count("Senior Paramedic")),
-                    ("Paramedic", get_role_count("Paramedic")),
-                    ("Advanced EMT", get_role_count("Advanced EMT")),
-                    ("Emergency Medical Responser", get_role_count("Emergency Medical Responser")),
-                    ("Emergency Medical Technician", get_role_count("Emergency Medical Technician")),
-                    ("Trainee EMT", get_role_count("Trainee EMT"))
-                ],
-                "Abteilungen": [
-                    ("🏫| Leitung Medical Education", get_role_count("🏫| Leitung Medical Education")),
-                    ("🔪| Leitung General Surgery", get_role_count("🔪| Leitung General Surgery")),
-                    ("🧠| Leitung Psychiatric Department", get_role_count("🧠| Leitung Psychiatric Department")),
-                    ("🚁| Leitung Search and Resuce", get_role_count("🚁| Leitung Search and Resuce")),
-                    ("🚁| SAR  - Instructor", get_role_count("🚁| SAR  - Instructor")),
-                    ("🏫| Medical Education Department", get_role_count("🏫| Medical Education Department")),
-                    ("🔪| General Surgery", get_role_count("🔪| General Surgery")),
-                    ("🔪| Operative License", get_role_count("🔪| Operative License")),
-                    ("🧠| Psychiatric Department", get_role_count("🧠| Psychiatric Department")),
-                    ("🚁| Search and Resuce", get_role_count("🚁| Search and Resuce")),
-                    ("🚤| SAR-Bootsausbildung", get_role_count("🚤| SAR-Bootsausbildung")),
-                    ("Los Santos Medical Department", get_role_count("Los Santos Medical Department")),
-                    ("🏝️ | Abgemeldet", get_role_count("🏝️ | Abgemeldet"))
-                ],
-                "Extras": [
-                    ("Dispatch Operations", get_role_count("Dispatch Operations")),
-                    ("Erfahrender Ausbilder", get_role_count("Erfahrender Ausbilder")),
-                    ("Ausbilder", get_role_count("Ausbilder")),
-                    ("Test-Ausbilder", get_role_count("Test-Ausbilder")),
-                    ("Externe Aushilfe", get_role_count("Externe Aushilfe"))
-                ],
-                "Nebenfunktionen": [
-                    ("Titelgremium", get_role_count("Titelgremium")),
-                    ("Pressesprecher", get_role_count("Pressesprecher")),
-                    ("Personalverwaltung", get_role_count("Personalverwaltung")),
-                    ("Social-Media Verwalter", get_role_count("Social-Media Verwalter")),
-                    ("Fuhrparkverwaltung", get_role_count("Fuhrparkverwaltung")),
-                    ("Parlamentsvertretung", get_role_count("Parlamentsvertretung"))
-                ],
-                "Sonstiges": [
-                    ("LSPD - FE", get_role_count("LSPD - FE")),
-                    ("DOJ - FE", get_role_count("DOJ - FE")),
-                    ("FIB - FE", get_role_count("FIB - FE")),
-                    ("NG - FE", get_role_count("NG - FE")),
-                    ("Neutral - FE", get_role_count("Neutral - FE")),
-                    ("Ehrenrang", get_role_count("Ehrenrang")),
-                    ("Server Booster", get_role_count("Server Booster"))
-                ],
-                "Staatsbürger": [
-                    ("Staatsbürger", get_role_count("Staatsbürger"))
-                ],
-                "Bot´s": [
-                    ("Bot", get_role_count("Bot"))
-                ]
-            }
-
-            embed = discord.Embed(title="📊 Los Santos Medical Department Stats", color=discord.Color.blurple())
-            embed.add_field(
-                name="**Gesamte Mitglieder**",
-                value=str(stats["Los Santos Medical Department Stats 📊"]["Gesamte Mitglieder"]),
-                inline=True
-            )
-            embed.add_field(
-                name="**LSMD Mitglieder**",
-                value=str(stats["Los Santos Medical Department Stats 📊"]["LSMD Mitglieder"]),
-                inline=True
-            )
-            embed.add_field(name="\u200b", value="\u200b", inline=False)
-
-            for section, roles in stats.items():
-                if isinstance(roles, list):
-                    value = "\n".join([f"{role}: {count}" for role, count in roles]) or "Keine Rollen gefunden"
-                    embed.add_field(name=f"__{section}__", value=value, inline=False)
-
-            await message.channel.send(embed=embed)
+        
 
     except Exception as exc:
    
