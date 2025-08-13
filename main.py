@@ -1052,10 +1052,10 @@ async def status_log():
 
         major, minor, patch = map(int, bot_version.split('.'))
         patch += 1
-        if patch > 9:
+        if patch >= 100:  
             patch = 0
             minor += 1
-        if minor > 9:
+        if minor >= 100:  
             minor = 0
             major += 1
         bot_version = f"{major}.{minor}.{patch}"
