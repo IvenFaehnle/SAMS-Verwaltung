@@ -8,6 +8,7 @@ import string
 import io
 from discord.ext import tasks
 from datetime import datetime
+import os
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -1120,11 +1121,6 @@ async def status_log():
 async def before_status_log():
     await bot.wait_until_ready()
         
-@bot.event
-async def on_ready():
-    await tree.sync()
-    print(f"? Bot ist online als {bot.user}")
-
 if __name__ == "__main__":
     bot.run("TOKEN_HERE")
 
