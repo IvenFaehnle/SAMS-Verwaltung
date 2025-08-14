@@ -1089,47 +1089,52 @@ async def on_message_edit(before, after):
 
 @bot.event
 async def on_message_delete(message):
+    try:
+        if message.author.bot or message.channel.id in EXCLUDED_CHANNELS:
+            return
 
-    if message.author.bot or message.channel.id in EXCLUDED_CHANNELS:
-        return
+        log_channel = bot.get_channel(MESSAGE_LOG_CHANNEL_ID)
+        if not log_channel:
+            print(f"⚠️ Message Delete Log-Kanal mit ID {MESSAGE_LOG_CHANNEL_ID} nicht gefunden!")
+            return
 
-    log_channel = bot.get_channel(MESSAGE_LOG_CHANNEL_ID)
-    if not log_channel:
-        return
+        print(f"📝 Message deleted in #{message.channel.name} by {message.author.name}: {message.content[:50]}...")
 
+        timestamp = int(message.created_at.timestamp())
+        time_since = f"<t:{timestamp}:R>"
 
-    timestamp = int(message.created_at.timestamp())
-    time_since = f"<t:{timestamp}:R>"
+        embed = discord.Embed(title="Message deleted", color=discord.Color.red())
+        embed.add_field(name="Channel", value=f"{message.channel.name} ({message.channel.mention})", inline=False)
 
-    embed = discord.Embed(title="Message deleted", color=discord.Color.red())
-    embed.add_field(name="Channel", value=f"{message.channel.name} ({message.channel.mention})", inline=False)
+        message_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}"
+        embed.add_field(name="Message ID", value=f"[`{message.id}`]({message_link})", inline=False)
 
+        embed.add_field(name="Message author", value=f"@{message.author.name} ({message.author.mention})", inline=False)
+        embed.add_field(name="Message created", value=time_since, inline=False)
 
-    message_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}"
-    embed.add_field(name="Message ID", value=f"[`{message.id}`]({message_link})", inline=False)
+        content = message.content[:1024] if message.content else "[Leerer Inhalt]"
 
-    embed.add_field(name="Message author", value=f"@{message.author.name} ({message.author.mention})", inline=False)
-    embed.add_field(name="Message created", value=time_since, inline=False)
+        if message.attachments:
+            attachments_info = "\n".join([f"Anhang: {att.filename}" for att in message.attachments])
+            content += f"\n\n**Anhänge:**\n{attachments_info}"
 
+        embed.add_field(name="Message", value=content, inline=False)
+        embed.timestamp = discord.utils.utcnow()
 
-    content = message.content[:1024] if message.content else "[Leerer Inhalt]"
+        await log_channel.send(embed=embed)
+        print(f"✅ Message delete logged successfully")
 
-
-    if message.attachments:
-        attachments_info = "\n".join([f"Anhang: {att.filename}" for att in message.attachments])
-        content += f"\n\n**Anhänge:**\n{attachments_info}"
-
-    embed.add_field(name="Message", value=content, inline=False)
-
-    embed.timestamp = discord.utils.utcnow()
-
-    await log_channel.send(embed=embed)
+    except Exception as e:
+        print(f"❌ Fehler beim Loggen der gelöschten Nachricht: {e}")
+        try:
+            await log_error(f"Fehler beim Message Delete Logging: {str(e)}")
+        except:
+            pass
 
 
 async def handle_role_connections(member: discord.Member):
     if not member:
         return
-
     
     role_connections = {
         1405336711889817600: [
