@@ -1806,7 +1806,7 @@ async def status_log():
         now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
         start_embed = discord.Embed(
-            title="__LSMD Verwaltung__",
+            title="__SAMS Verwaltung__",
             description="Starting sync...",
             color=discord.Color.orange()
         )
@@ -1834,7 +1834,7 @@ async def status_log():
 
 
         complete_embed = discord.Embed(
-            title="__LSMD Verwaltung__",
+            title="__SAMS Verwaltung__",
             description="Sync completed!",
             color=discord.Color.green()
         )
