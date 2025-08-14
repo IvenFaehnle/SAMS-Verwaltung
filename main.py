@@ -1310,7 +1310,6 @@ async def on_member_update(before, after):
 async def on_member_join(member):
     auto_roles = JOIN_RULES_ID
 
-    # Check role connections for new members
     await handle_role_connections(member)
 
     log_channel = bot.get_channel(MEMBER_LOG_ID)
@@ -1690,6 +1689,5 @@ async def status_log():
 async def before_status_log():
     await bot.wait_until_ready()
 
-if __name__ == '__main__':
-    stay_alive()
-    bot.run(os.environ['DISCORD_TOKEN'])
+if __name__ == "__main__":
+    bot.run("TOKEN_HERE")
