@@ -740,9 +740,9 @@ async def on_message(message: discord.Message):
             return len(role.members) if role else 0
 
         stats = {
-            "Los Santos Medical Department Stats 📊": {
+            "San Andreas Medical Services Stats 📊": {
                 "Gesamte Mitglieder": get_role_count("@everyone"),
-                "LSMD Mitglieder": get_role_count("Los Santos Medical Department")
+                "SAMS Mitglieder": get_role_count("San Andreas Medical Services")
             },
             "Leitungsebene": [
                 ("Chief Medical Director", get_role_count("Chief Medical Director")),
@@ -817,15 +817,15 @@ async def on_message(message: discord.Message):
             ]
         }
 
-        embed = discord.Embed(title="📊 Los Santos Medical Department Stats", color=discord.Color.blurple())
+        embed = discord.Embed(title="📊 San Andreas Medical Services Stats", color=discord.Color.blurple())
         embed.add_field(
             name="**Gesamte Mitglieder**",
-            value=str(stats["Los Santos Medical Department Stats 📊"]["Gesamte Mitglieder"]),
+            value=str(stats["San Andreas Medical Services Stats 📊"]["Gesamte Mitglieder"]),
             inline=True
         )
         embed.add_field(
-            name="**LSMD Mitglieder**",
-            value=str(stats["Los Santos Medical Department Stats 📊"]["LSMD Mitglieder"]),
+            name="**SAMS Mitglieder**",
+            value=str(stats["San Andreas Medical Services Stats 📊"]["SAMS Mitglieder"]),
             inline=True
         )
         embed.add_field(name="\u200b", value="\u200b", inline=False)
@@ -1661,7 +1661,7 @@ async def setup_reaction_roles():
     
     role_text = ""
     for emoji, role_name, role_id in role_info:
-        role_text += f"{emoji} - <@&{role_id}>\n"
+        role_text += f"> {emoji} - <@&{role_id}>\n"
     
     embed.add_field(name="Verfügbare Rollen:", value=role_text, inline=False)
     
