@@ -35,6 +35,7 @@ MEMBER_LOG_ID = 1052370202043621386
 VOICE_LOG_ID = 1383135762052157600
 EXCLUDED_CHANNELS = [1330319276154032179, 1330324925944168499, 1378484448554651781]
 JOIN_RULES_ID = [1112116567556235294, 1378060409788960909]
+REACTION_ROLES = 1341490927935557662 
 
 def has_required_role(interaction: discord.Interaction) -> bool:
     return any(role.id in ALLOWED_ROLE_IDS for role in interaction.user.roles)
@@ -1124,30 +1125,29 @@ async def on_message_delete(message):
 
     await log_channel.send(embed=embed)
 
+
 async def handle_role_connections(member: discord.Member):
     if not member:
         return
 
+    
     role_connections = {
-        1378044741874221056: [
-            1341491722961682543, 1341491806734651514, 1341491907724972122,
-            1374491251482558545, 1374490464119554159, 1374491124349141002,
-            1374490266706120845, 1374505941038530663, 1377037664087183420,
-            1316162018838843522, 1086619242310402069, 1351940914997628968,
-            1351941009570922598, 1351941076218286184, 1351941565207281724,
-            1351941619246694510
+        1405336711889817600: [
+            1405336830634627144, 1405336827770175539, 1405336824523788451,
+            1405336821424066580, 1405336818739707978, 1405336815522680862,
+            1405336812494262335, 1405336809705050172
         ],
-        1378086885037178960: [
-            1377668908504584224, 1396121017893785630, 1394474415021883452,
-            1390090743011344414, 1389686744840011916, 1331579941321703464
+        1405337883963035698: [
+            1405337895476138004, 1405337894687604757, 1405337892993372291,
+            1405337890808004718, 1405337887809081447
         ],
-        1378044948749746317: [
-            1165747504814510231, 1377743930690506845, 1377743883064184903,
-            1377743800155246602, 1090587504987607121
+        1405337896310800464: [
+            1405338740318146600, 1405338739307450579, 1405337901306220665,
+            1405337900408766524, 1405337897049002044
         ],
-        1378086334849093683: [
-            906845737281810443, 1382218511820132456, 975473680358445136,
-            1165771712441364651, 1097205524690374716
+        1405338740955545780: [
+            1405338744055402657, 1405338743312744558, 1405338742503243796,
+            1405338742218293248
         ]
     }
 
@@ -1607,6 +1607,165 @@ async def on_ready():
 
     if not status_log.is_running():
         status_log.start()
+    
+    
+    await setup_reaction_roles()
+
+
+async def setup_reaction_roles():
+    """Setup reaction role message in the specified channel"""
+    channel = bot.get_channel(REACTION_ROLES)
+    if not channel:
+        print("❌ Reaction Role Channel nicht gefunden!")
+        return
+    
+    existing_message = None
+    try:
+        async for message in channel.history(limit=100):
+            if (message.author == bot.user and 
+                message.embeds and 
+                message.embeds[0].title == "Optionale Rollen"):
+                existing_message = message
+                break
+    except Exception as e:
+        print(f"Fehler beim Überprüfen vorhandener Nachrichten: {e}")
+    
+    if existing_message:
+        print("✅ Reaction Role System bereits vorhanden - kein neues Setup erforderlich!")
+        return
+    
+    embed = discord.Embed(
+        title="Optionale Rollen",
+        description=(
+            "Um die Pings ein Wenig zu reduzieren, gibt es jetzt für Module oder Interesse an Spezialisierungen, "
+            "sogenannte \"Reaction Roles\" Solltet ihr also dementsprechend Interesse an einer Spezialisierung, "
+            "Fortbildung oder einem Modul haben holt euch hier einfach die Rolle ab und wenn sie durch Ausbilder "
+            "Gepingt wird, absolviert Ihr jene und könnt euch jene Rolle nach erfolgreichem Absolvieren durch "
+            "erneutes Anklicken der Reaktion wieder Entfernen.\n\n"
+            "**Bitte klicke auf die benötigten Rollen, um diese zu erhalten.**"
+        ),
+        color=discord.Color.blue()
+    )
+    
+    role_info = [
+        ("1️⃣", "Modul 1 benötigt", 1405349278578249770),
+        ("2️⃣", "Modul 2 benötigt", 1405349344932134953),
+        ("3️⃣", "Modul 3 benötigt", 1405349347998306347),
+        ("🎓", "Interesse Medical Education", 1405349351643152514),
+        ("🥼", "Interesse General Surgery", 1405349354881028227),
+        ("🧠", "Interesse Psychiatric", 1405349357644939404),
+        ("🚁", "Interesse Search and Rescue", 1405349360815968286),
+        ("🚤", "Interesse SAR-Bootsausbildung", 1405349364490174544),
+        ("🚨", "Interesse Dispatch Operations", 1405349367904207079)
+    ]
+    
+    role_text = ""
+    for emoji, role_name, role_id in role_info:
+        role_text += f"{emoji} - <@&{role_id}>\n"
+    
+    embed.add_field(name="Verfügbare Rollen:", value=role_text, inline=False)
+    
+    message = await channel.send(embed=embed)
+    
+    reactions = ["1️⃣", "2️⃣", "3️⃣", "🎓", "🥼", "🧠", "🚁", "🚤", "🚨"]
+    for reaction in reactions:
+        try:
+            await message.add_reaction(reaction)
+        except Exception as e:
+            print(f"Fehler beim Hinzufügen der Reaktion {reaction}: {e}")
+    
+    print("✅ Reaction Role System eingerichtet!")
+
+
+@bot.event
+async def on_raw_reaction_add(payload):
+    """Handle reaction role assignment when user adds reaction"""
+    if payload.user_id == bot.user.id:
+        return
+    
+    if payload.channel_id != REACTION_ROLES:
+        return
+    
+    reaction_roles = {
+        "1️⃣": 1405349278578249770,  
+        "2️⃣": 1405349344932134953,  
+        "3️⃣": 1405349347998306347,  
+        "🎓": 1405349351643152514, 
+        "🥼": 1405349354881028227,  
+        "🧠": 1405349357644939404,  
+        "🚁": 1405349360815968286,  
+        "🚤": 1405349364490174544,  
+        "🚨": 1405349367904207079   
+    }
+    
+    emoji = str(payload.emoji)
+    if emoji not in reaction_roles:
+        return
+    
+    guild = bot.get_guild(payload.guild_id)
+    if not guild:
+        return
+    
+    member = guild.get_member(payload.user_id)
+    if not member:
+        return
+    
+    role_id = reaction_roles[emoji]
+    role = guild.get_role(role_id)
+    if not role:
+        return
+    
+    try:
+        await member.add_roles(role, reason="Reaction Role hinzugefügt")
+        print(f"✅ {member.name} hat die Rolle {role.name} erhalten")
+    except Exception as e:
+        print(f"❌ Fehler beim Hinzufügen der Rolle {role.name} für {member.name}: {e}")
+
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    """Handle reaction role removal when user removes reaction"""
+    if payload.user_id == bot.user.id:
+        return
+    
+    
+    if payload.channel_id != REACTION_ROLES:
+        return
+    
+    reaction_roles = {
+        "1️⃣": 1405349278578249770, 
+        "2️⃣": 1405349344932134953,  
+        "3️⃣": 1405349347998306347, 
+        "🎓": 1405349351643152514, 
+        "🥼": 1405349354881028227,  
+        "🧠": 1405349357644939404,  
+        "🚁": 1405349360815968286,  
+        "🚤": 1405349364490174544,  
+        "🚨": 1405349367904207079   
+    }
+    
+    emoji = str(payload.emoji)
+    if emoji not in reaction_roles:
+        return
+    
+    guild = bot.get_guild(payload.guild_id)
+    if not guild:
+        return
+    
+    member = guild.get_member(payload.user_id)
+    if not member:
+        return
+    
+    role_id = reaction_roles[emoji]
+    role = guild.get_role(role_id)
+    if not role:
+        return
+    
+    try:
+        await member.remove_roles(role, reason="Reaction Role entfernt")
+        print(f"➖ {member.name} hat die Rolle {role.name} verloren")
+    except Exception as e:
+        print(f"❌ Fehler beim Entfernen der Rolle {role.name} für {member.name}: {e}")
 
 
 async def log_mod_action(guild, title, color, user_id, code, executor, user_mention=None):
