@@ -1,14 +1,14 @@
 import discord
+import os
 from discord.ext import commands
+from server import stay_alive
 import asyncio
 import re
 from datetime import timedelta
 import random
-import string
 import io
 from discord.ext import tasks
 from datetime import datetime
-import os
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -22,7 +22,7 @@ CHANNEL_GENERAL_ID = 979128951723155557
 CHANNEL_QUIT_ID = 979128097527976017
 CHANNEL_BLACKLIST_ID = 1009520367284531220
 CHANNEL_GEBURTSURKUNDEN_ID = 1389714794575040663
-CHANNEL_LOG_ID = 1401575829267550330
+CHANNEL_LOG_ID = 1390077428944212118
 MOD_LOG_CHANNEL_ID = 1328008745963356180
 SYNC_ROLE_ID = 906845737281810443
 LÖSCHEN_LOG_CHANNEL_ID = 1052369974573932626
@@ -30,6 +30,12 @@ PROMOTES_SPERREN = 1394763356023296173
 ERROR_LOG_CHANNEL_ID = 1404465611811061891
 ALLOWED_S_ROLE_IDS = [906845737281810443, 975473680358445136, 1165771712441364651, 1097205524690374716, 1367220175744798721, 943241957654814790]
 STATUSLOG_ID = 1404430746579505232
+MESSAGE_LOG_CHANNEL_ID = 1052369974573932626
+ROLE_LOG_ID = 1052369993205026888
+MEMBER_LOG_ID = 1052370202043621386
+VOICE_LOG_ID = 1383135762052157600
+EXCLUDED_CHANNELS = [1330319276154032179, 1330324925944168499, 1378484448554651781]
+JOIN_RULES_ID = [1112116567556235294, 1378060409788960909]
 
 def has_required_role(interaction: discord.Interaction) -> bool:
     return any(role.id in ALLOWED_ROLE_IDS for role in interaction.user.roles)
@@ -534,6 +540,14 @@ async def geburtsurkunde(interaction: discord.Interaction, name: str,
                                           CHANNEL_GEBURTSURKUNDEN_ID)
         return
 
+    await log_command_use(
+        interaction, "geburtsurkunde", {
+            "name": name,
+            "geburtsdatum": geburtsdatum,
+            "ausgestellt_von": ausgestellt_von,
+            "datum": datum
+        })
+
     name = await resolve_mentions_to_text(interaction, name)
     ausgestellt_von = await resolve_mentions_to_text(interaction,
                                                      ausgestellt_von)
@@ -568,6 +582,15 @@ async def geburtsurkunden_sperre(interaction: discord.Interaction, name: str,
         await send_wrong_channel_response(interaction,
                                           CHANNEL_GEBURTSURKUNDEN_ID)
         return
+
+    await log_command_use(
+        interaction, "geburtsurkunden_sperre", {
+            "name": name,
+            "geburtsdatum": geburtsdatum,
+            "ausgestellt_von": ausgestellt_von,
+            "grund": grund,
+            "datum": datum
+        })
 
     name = await resolve_mentions_to_text(interaction, name)
     ausgestellt_von = await resolve_mentions_to_text(interaction,
@@ -647,7 +670,7 @@ async def cmd_unban(ctx, user_id: int):
                 await log_mod_action(ctx.guild, "🔓 Benutzer entbannt", discord.Color.green(), user_id, code, ctx.author, user_mention=str(ban_entry.user))
                 found_user = True
                 break
-        
+
         if not found_user:
             await ctx.send("Benutzer nicht in der Ban-Liste gefunden.")
     except discord.Forbidden:
@@ -868,35 +891,35 @@ async def on_message(message: discord.Message):
         elif cmd == "s!mute" and len(parts) >= 3:
             try:
                 user_id = int(parts[1].strip("<@!>"))
-                
+
                 time_str = parts[2].lower()
                 if time_str.endswith('s'):
-                    duration_minutes = int(time_str[:-1]) / 60  
+                    duration_minutes = int(time_str[:-1]) / 60
                 elif time_str.endswith('m'):
-                    duration_minutes = int(time_str[:-1])  
+                    duration_minutes = int(time_str[:-1])
                 elif time_str.endswith('h'):
-                    duration_minutes = int(time_str[:-1]) * 60  
+                    duration_minutes = int(time_str[:-1]) * 60
                 elif time_str.endswith('d'):
-                    duration_minutes = int(time_str[:-1]) * 60 * 24  
+                    duration_minutes = int(time_str[:-1]) * 60 * 24
                 else:
-                    duration_minutes = int(time_str)  
-                    
+                    duration_minutes = int(time_str)
+
                 if duration_minutes <= 0:
                     await message.channel.send("\u274c Dauer muss größer als 0 sein.", delete_after=5)
                     return
-                    
+
             except ValueError:
                 await message.channel.send("\u274c Ungültige Eingabe. Format: `s!mute @user 10m [Grund]`", delete_after=5)
                 await log_error(f"Mute fehlgeschlagen: Ungültige Eingabe `{parts[1:3]}` von {message.author.mention}")
                 return
-                
+
             reason = " ".join(parts[3:]) or "Kein Grund angegeben"
             member = message.guild.get_member(user_id)
             if not member:
                 await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
                 await log_error(f"Mute fehlgeschlagen: Nutzer-ID `{user_id}` nicht gefunden von {message.author.mention}")
                 return
-                
+
             await member.timeout(timedelta(minutes=duration_minutes), reason=reason)
             await message.channel.send(f"{member.mention} wurde für {parts[2]} gemuted. Grund: {reason}")
             code = "N/A"
@@ -920,22 +943,21 @@ async def on_message(message: discord.Message):
 
             joined_at = member.joined_at.strftime("%d.%m.%Y %H:%M:%S") if member.joined_at else "Unbekannt"
             created_at = member.created_at.strftime("%d.%m.%Y %H:%M:%S")
-            
+
             roles = [role.name for role in member.roles if role.name != "@everyone"]
             roles_text = ", ".join(roles) if roles else "Keine Rollen"
-            
+
             embed = discord.Embed(title="👤 Benutzerinfo", color=discord.Color.blurple())
             embed.add_field(name="**Name**", value=str(member), inline=False)
             embed.add_field(name="**ID**", value=str(member.id), inline=False)
             embed.add_field(name="**Serverbeitritt**", value=joined_at, inline=False)
             embed.add_field(name="**Account erstellt**", value=created_at, inline=False)
             embed.add_field(name="**Rollen**", value=roles_text, inline=False)
-            
+
             if member.avatar:
                 embed.set_thumbnail(url=member.avatar.url)
-            n
             embed.timestamp = discord.utils.utcnow()
-            
+
             await message.channel.send(embed=embed)
 
         elif cmd == "s!unban" and len(parts) == 2:
@@ -944,7 +966,7 @@ async def on_message(message: discord.Message):
             except ValueError:
                 await message.channel.send("\u274c Ungültige Nutzer-ID.", delete_after=5)
                 return
-            
+
             found_user = False
             async for ban_entry in message.guild.bans():
                 if ban_entry.user.id == user_id:
@@ -954,7 +976,7 @@ async def on_message(message: discord.Message):
                     await log_mod_action(message.guild, "🔓 Benutzer entbannt", discord.Color.green(), user_id, code, message.author, user_mention=str(ban_entry.user))
                     found_user = True
                     break
-            
+
             if not found_user:
                 await message.channel.send("\u274c Nutzer nicht gefunden.", delete_after=5)
                 await log_error(f"Unban fehlgeschlagen: Nutzer-ID `{user_id}` nicht in Ban-Liste gefunden von {message.author.mention}")
@@ -979,7 +1001,7 @@ async def on_message(message: discord.Message):
             code = "N/A"
             await log_mod_action(message.guild, "🔊 Timeout aufgehoben", discord.Color.blurple(), user_id, code, message.author, user_mention=member.mention)
 
-        else:     
+        else:
             await log_error(f"Unbekannter s! Befehl `{message.content}` von {message.author.mention} in {message.channel.mention}")
             await message.channel.send("\u274c Unbekannter Befehl.", delete_after=5)
 
@@ -1026,6 +1048,558 @@ async def on_command_error(ctx, error):
 
 
 @bot.event
+async def on_message_edit(before, after):
+
+    if before.author.bot or before.channel.id in EXCLUDED_CHANNELS:
+        return
+
+
+    if before.content == after.content:
+        return
+
+    log_channel = bot.get_channel(MESSAGE_LOG_CHANNEL_ID)
+    if not log_channel:
+        return
+
+
+    timestamp = int(before.created_at.timestamp())
+    time_since = f"<t:{timestamp}:R>"
+
+    embed = discord.Embed(title="Message edited", color=discord.Color.orange())
+    embed.add_field(name="Channel", value=f"{before.channel.name} ({before.channel.mention})", inline=False)
+
+
+    message_link = f"https://discord.com/channels/{before.guild.id}/{before.channel.id}/{before.id}"
+    embed.add_field(name="Message ID", value=f"[`{before.id}`]({message_link})", inline=False)
+
+    embed.add_field(name="Message author", value=f"@{before.author.name} ({before.author.mention})", inline=False)
+    embed.add_field(name="Message created", value=time_since, inline=False)
+
+
+    before_content = before.content[:1024] if before.content else "[Leerer Inhalt]"
+    after_content = after.content[:1024] if after.content else "[Leerer Inhalt]"
+
+    embed.add_field(name="Before", value=before_content, inline=True)
+    embed.add_field(name="After", value=after_content, inline=True)
+
+    embed.timestamp = discord.utils.utcnow()
+
+    await log_channel.send(embed=embed)
+
+
+@bot.event
+async def on_message_delete(message):
+
+    if message.author.bot or message.channel.id in EXCLUDED_CHANNELS:
+        return
+
+    log_channel = bot.get_channel(MESSAGE_LOG_CHANNEL_ID)
+    if not log_channel:
+        return
+
+
+    timestamp = int(message.created_at.timestamp())
+    time_since = f"<t:{timestamp}:R>"
+
+    embed = discord.Embed(title="Message deleted", color=discord.Color.red())
+    embed.add_field(name="Channel", value=f"{message.channel.name} ({message.channel.mention})", inline=False)
+
+
+    message_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}"
+    embed.add_field(name="Message ID", value=f"[`{message.id}`]({message_link})", inline=False)
+
+    embed.add_field(name="Message author", value=f"@{message.author.name} ({message.author.mention})", inline=False)
+    embed.add_field(name="Message created", value=time_since, inline=False)
+
+
+    content = message.content[:1024] if message.content else "[Leerer Inhalt]"
+
+
+    if message.attachments:
+        attachments_info = "\n".join([f"Anhang: {att.filename}" for att in message.attachments])
+        content += f"\n\n**Anhänge:**\n{attachments_info}"
+
+    embed.add_field(name="Message", value=content, inline=False)
+
+    embed.timestamp = discord.utils.utcnow()
+
+    await log_channel.send(embed=embed)
+
+async def handle_role_connections(member: discord.Member):
+    if not member:
+        return
+
+    role_connections = {
+        1378044741874221056: [
+            1341491722961682543, 1341491806734651514, 1341491907724972122,
+            1374491251482558545, 1374490464119554159, 1374491124349141002,
+            1374490266706120845, 1374505941038530663, 1377037664087183420,
+            1316162018838843522, 1086619242310402069, 1351940914997628968,
+            1351941009570922598, 1351941076218286184, 1351941565207281724,
+            1351941619246694510
+        ],
+        1378086885037178960: [
+            1377668908504584224, 1396121017893785630, 1394474415021883452,
+            1390090743011344414, 1389686744840011916, 1331579941321703464
+        ],
+        1378044948749746317: [
+            1165747504814510231, 1377743930690506845, 1377743883064184903,
+            1377743800155246602, 1090587504987607121
+        ],
+        1378086334849093683: [
+            906845737281810443, 1382218511820132456, 975473680358445136,
+            1165771712441364651, 1097205524690374716
+        ]
+    }
+
+    member_roles = {role.id for role in member.roles}
+
+    for target_role_id, source_role_ids in role_connections.items():
+        if any(source_role_id in member_roles for source_role_id in source_role_ids):
+            target_role = member.guild.get_role(target_role_id)
+            if target_role and target_role not in member.roles:
+                try:
+                    await member.add_roles(target_role, reason="Automatische Rollenzuweisung (Verknüpfung)")
+                    print(f"Assigned role {target_role.name} to {member.name} due to role connection.")
+                except discord.Forbidden:
+                    print(f"Failed to assign role {target_role.name} to {member.name}: Missing permissions.")
+                except Exception as e:
+                    print(f"Error assigning role {target_role.name} to {member.name}: {e}")
+        else:
+            target_role = member.guild.get_role(target_role_id)
+            if target_role and target_role in member.roles:
+                try:
+                    await member.remove_roles(target_role, reason="Automatische Rollenentfernung (Verknüpfung)")
+                    print(f"Removed role {target_role.name} from {member.name} due to role connection.")
+                except discord.Forbidden:
+                    print(f"Failed to remove role {target_role.name} from {member.name}: Missing permissions.")
+                except Exception as e:
+                    print(f"Error removing role {target_role.name} from {member.name}: {e}")
+
+
+@bot.event
+async def on_member_update(before, after):
+    if before.roles == after.roles:
+        return
+
+    await handle_role_connections(after)
+
+    log_channel = bot.get_channel(ROLE_LOG_ID)
+    if not log_channel:
+        return
+
+
+    before_roles = set(before.roles)
+    after_roles = set(after.roles)
+
+    added_roles = after_roles - before_roles
+    removed_roles = before_roles - after_roles
+
+
+    if added_roles or removed_roles:
+        embed = discord.Embed(
+            title="User roles update",
+            color=discord.Color.blue()
+        )
+
+        display_name = after.display_name if after.display_name != after.name else after.name
+        embed.add_field(
+            name="User",
+            value=f"{after.mention} (@{display_name})",
+            inline=False
+        )
+
+        if added_roles:
+            added_role_mentions = ", ".join([role.mention for role in added_roles])
+            embed.add_field(
+                name="Added",
+                value=f"{added_role_mentions}",
+                inline=False
+            )
+
+        if removed_roles:
+            removed_role_mentions = ", ".join([role.mention for role in removed_roles])
+            embed.add_field(
+                name="Removed",
+                value=f"{removed_role_mentions}",
+                inline=False
+            )
+
+        try:
+            audit_logs = [entry async for entry in after.guild.audit_logs(action=discord.AuditLogAction.member_role_update, limit=5)]
+
+            executor_info = "Unbekannt"
+            reason_info = None
+
+            for entry in audit_logs:
+                if entry.target and entry.target.id == after.id:
+                    time_diff = discord.utils.utcnow() - entry.created_at
+                    if time_diff.total_seconds() <= 10:
+                        executor_info = f"{entry.user.mention} (@{entry.user.name})"
+                        if entry.reason:
+                            reason_info = entry.reason
+                        break
+
+            embed.add_field(
+                name="Ausgeführt von",
+                value=f"{executor_info}",
+                inline=False
+            )
+
+            if reason_info:
+                embed.add_field(
+                    name="Reason",
+                    value=f"{reason_info}",
+                    inline=False
+                )
+
+        except discord.Forbidden:
+            embed.add_field(
+                name="Ausgeführt von",
+                value="Keine Berechtigung für Audit-Logs",
+                inline=False
+            )
+        except Exception:
+            embed.add_field(
+                name="Ausgeführt von",
+                value="Fehler beim Abrufen",
+                inline=False
+            )
+
+        if after.avatar:
+            embed.set_thumbnail(url=after.avatar.url)
+
+        embed.timestamp = discord.utils.utcnow()
+
+        await log_channel.send(embed=embed)
+
+    if before.nick != after.nick:
+        log_channel = bot.get_channel(MEMBER_LOG_ID)
+        if not log_channel:
+            return
+
+        embed = discord.Embed(
+            title="User nickname update",
+            color=discord.Color.orange()
+        )
+
+        display_name = after.display_name if after.display_name != after.name else after.name
+        embed.add_field(
+            name="User",
+            value=f"{after.mention} (@{display_name})",
+            inline=False
+        )
+
+        user_link = f"https://discord.com/users/{after.id}"
+        embed.add_field(name="ID", value=f"[`{after.id}`]({user_link})", inline=False)
+
+        current_nickname = after.nick if after.nick else "/"
+        previous_nickname = before.nick if before.nick else "/"
+
+        embed.add_field(name="Nickname", value=current_nickname, inline=False)
+        embed.add_field(name="Previous nickname", value=previous_nickname, inline=False)
+
+        if after.avatar:
+            embed.set_thumbnail(url=after.avatar.url)
+
+        embed.timestamp = discord.utils.utcnow()
+
+        await log_channel.send(embed=embed)
+
+
+@bot.event
+async def on_member_join(member):
+    auto_roles = JOIN_RULES_ID
+
+    # Check role connections for new members
+    await handle_role_connections(member)
+
+    log_channel = bot.get_channel(MEMBER_LOG_ID)
+    if not log_channel:
+        return
+
+    embed = discord.Embed(
+        title="User joined",
+        color=discord.Color.green()
+    )
+
+    display_name = member.display_name if member.display_name != member.name else member.name
+    embed.add_field(
+        name="User",
+        value=f"{member.mention} (@{display_name})",
+        inline=False
+    )
+
+    user_link = f"https://discord.com/users/{member.id}"
+    embed.add_field(name="ID", value=f"[`{member.id}`]({user_link})", inline=False)
+
+
+    timestamp = int(member.created_at.timestamp())
+    age_text = f"<t:{timestamp}:R>"
+
+    embed.add_field(name="Created", value=age_text, inline=False)
+    embed.add_field(name="Members", value=str(member.guild.member_count), inline=False)
+
+    if member.avatar:
+        embed.set_thumbnail(url=member.avatar.url)
+
+    embed.timestamp = discord.utils.utcnow()
+
+    await log_channel.send(embed=embed)
+
+
+@bot.event
+async def on_member_remove(member):
+    log_channel = bot.get_channel(MEMBER_LOG_ID)
+    if not log_channel:
+        return
+
+    embed = discord.Embed(
+        title="User left",
+        color=discord.Color.red()
+    )
+
+    display_name = member.display_name if member.display_name != member.name else member.name
+    embed.add_field(
+        name="User",
+        value=f"@{member.name} (<@{member.id}>)",
+        inline=False
+    )
+
+    user_link = f"https://discord.com/users/{member.id}"
+    embed.add_field(name="ID", value=f"[`{member.id}`]({user_link})", inline=False)
+
+
+    if member.joined_at:
+        time_on_server = discord.utils.utcnow() - member.joined_at
+        if time_on_server.days >= 1:
+            joined_text = f"vor {time_on_server.days} Tag{'en' if time_on_server.days > 1 else ''}"
+        elif time_on_server.seconds >= 3600:
+            hours = time_on_server.seconds // 3600
+            joined_text = f"vor {hours} Stunde{'n' if hours > 1 else ''}"
+        else:
+            joined_text = "vor wenigen Minuten"
+    else:
+        joined_text = "Unbekannt"
+
+    embed.add_field(name="Joined", value=joined_text, inline=False)
+
+
+    roles = [role.mention for role in member.roles if role.name != "@everyone"]
+    roles_text = " ".join(roles) if roles else "Keine Rollen"
+    embed.add_field(name="Roles", value=roles_text, inline=False)
+
+    embed.add_field(name="Members", value=str(member.guild.member_count), inline=False)
+
+    if member.avatar:
+        embed.set_thumbnail(url=member.avatar.url)
+
+    embed.timestamp = discord.utils.utcnow()
+
+    await log_channel.send(embed=embed)
+
+
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    """Handle voice channel join, leave, and switch events"""
+    log_channel = bot.get_channel(VOICE_LOG_ID)
+    if not log_channel:
+        return
+
+    if before.channel is None and after.channel is not None:
+        embed = discord.Embed(
+            title="User joined channel",
+            color=discord.Color.green()
+        )
+
+        display_name = member.display_name if member.display_name != member.name else member.name
+        embed.add_field(
+            name="User",
+            value=f"{member.mention} (@{display_name})",
+            inline=False
+        )
+
+        embed.add_field(
+            name="Channel",
+            value=f"{after.channel.mention}",
+            inline=False
+        )
+
+        user_count = len(after.channel.members)
+        user_limit = after.channel.user_limit if after.channel.user_limit > 0 else "∞"
+        embed.add_field(
+            name="Users",
+            value=f"{user_count}/{user_limit}",
+            inline=False
+        )
+
+        if member.avatar:
+            embed.set_thumbnail(url=member.avatar.url)
+
+        embed.timestamp = discord.utils.utcnow()
+        await log_channel.send(embed=embed)
+
+    elif before.channel is not None and after.channel is None:
+        embed = discord.Embed(
+            title="User left channel",
+            color=discord.Color.red()
+        )
+
+        display_name = member.display_name if member.display_name != member.name else member.name
+        embed.add_field(
+            name="User",
+            value=f"{member.mention} (@{display_name})",
+            inline=False
+        )
+
+        embed.add_field(
+            name="Channel",
+            value=f"{before.channel.mention}",
+            inline=False
+        )
+
+        user_count = len(before.channel.members)
+        user_limit = before.channel.user_limit if before.channel.user_limit > 0 else "∞"
+        embed.add_field(
+            name="Users",
+            value=f"{user_count}/{user_limit}",
+            inline=False
+        )
+
+        if member.avatar:
+            embed.set_thumbnail(url=member.avatar.url)
+
+        embed.timestamp = discord.utils.utcnow()
+        await log_channel.send(embed=embed)
+
+
+    elif before.channel is not None and after.channel is not None and before.channel != after.channel:
+        was_moved = False
+        moved_by = None
+
+        try:
+            await asyncio.sleep(1.0)
+
+            audit_logs = [entry async for entry in member.guild.audit_logs(action=discord.AuditLogAction.member_move, limit=20)]
+
+            for entry in audit_logs:
+                if entry.target and entry.target.id == member.id:
+                    time_diff = discord.utils.utcnow() - entry.created_at
+                    if (time_diff.total_seconds() <= 30 and
+                        hasattr(entry.changes, 'before') and hasattr(entry.changes, 'after') and
+                        entry.changes.before.channel and entry.changes.after.channel and
+                        entry.changes.before.channel.id == before.channel.id and
+                        entry.changes.after.channel.id == after.channel.id):
+                        was_moved = True
+                        moved_by = entry.user
+                        break
+                    elif time_diff.total_seconds() <= 15 and entry.user.id != member.id:
+                        was_moved = True
+                        moved_by = entry.user
+                        break
+
+        except Exception as e:
+            print(f"Audit log error: {e}")
+            pass
+
+        if was_moved and moved_by:
+            embed = discord.Embed(
+                title="User moved channel",
+                color=discord.Color.purple()
+            )
+
+            display_name = member.display_name if member.display_name != member.name else member.name
+            embed.add_field(
+                name="User",
+                value=f"{member.mention} (@{display_name})",
+                inline=False
+            )
+
+            embed.add_field(
+                name="Channel",
+                value=f"{after.channel.mention}",
+                inline=False
+            )
+
+            user_count_new = len(after.channel.members)
+            user_limit_new = after.channel.user_limit if after.channel.user_limit > 0 else "∞"
+            embed.add_field(
+                name="Users",
+                value=f"{user_count_new}/{user_limit_new}",
+                inline=False
+            )
+
+            embed.add_field(
+                name="Previous channel",
+                value=f"{before.channel.mention}",
+                inline=False
+            )
+
+            user_count_prev = len(before.channel.members)
+            user_limit_prev = before.channel.user_limit if before.channel.user_limit > 0 else "∞"
+            embed.add_field(
+                name="Previous users",
+                value=f"{user_count_prev}/{user_limit_prev}",
+                inline=False
+            )
+
+            moved_by_display = moved_by.display_name if moved_by.display_name != moved_by.name else moved_by.name
+            embed.add_field(
+                name="Moved by",
+                value=f"{moved_by.mention} (@{moved_by_display})",
+                inline=False
+            )
+
+        else:
+            embed = discord.Embed(
+                title="User switched channel",
+                color=discord.Color.blue()
+            )
+
+            display_name = member.display_name if member.display_name != member.name else member.name
+            embed.add_field(
+                name="User",
+                value=f"{member.mention} (@{display_name})",
+                inline=False
+            )
+
+            embed.add_field(
+                name="Channel",
+                value=f"{after.channel.mention}",
+                inline=False
+            )
+
+            user_count_new = len(after.channel.members)
+            user_limit_new = after.channel.user_limit if after.channel.user_limit > 0 else "∞"
+            embed.add_field(
+                name="Users",
+                value=f"{user_count_new}/{user_limit_new}",
+                inline=False
+            )
+
+            embed.add_field(
+                name="Previous channel",
+                value=f"{before.channel.mention}",
+                inline=False
+            )
+
+            user_count_prev = len(before.channel.members)
+            user_limit_prev = before.channel.user_limit if before.channel.user_limit > 0 else "∞"
+            embed.add_field(
+                name="Previous users",
+                value=f"{user_count_prev}/{user_limit_prev}",
+                inline=False
+            )
+
+        if member.avatar:
+            embed.set_thumbnail(url=member.avatar.url)
+
+        embed.timestamp = discord.utils.utcnow()
+        await log_channel.send(embed=embed)
+
+
+@bot.event
 async def on_ready():
     try:
         await tree.sync()
@@ -1033,16 +1607,12 @@ async def on_ready():
         pass
     print(f"\u2705 Bot ist online als {bot.user}")
 
-
     if not status_log.is_running():
         status_log.start()
 
 
 async def log_mod_action(guild, title, color, user_id, code, executor, user_mention=None):
-    """
-    Schickt einen einheitlichen Log-Eintrag ins Mod-Log.
-    signature preserved: (guild, title, color, user_id, code, executor, user_mention=None)
-    """
+
     log_channel = guild.get_channel(MOD_LOG_CHANNEL_ID)
     if not log_channel:
         return
@@ -1069,7 +1639,7 @@ def save_version(version):
     with open(version_file, "w") as f:
         f.write(version)
 
-bot_version = load_version()  
+bot_version = load_version()
 
 @tasks.loop(minutes=10)
 async def status_log():
@@ -1091,10 +1661,10 @@ async def status_log():
 
         major, minor, patch = map(int, bot_version.split('.'))
         patch += 1
-        if patch >= 100:  
+        if patch >= 100:
             patch = 0
             minor += 1
-        if minor >= 100:  
+        if minor >= 100:
             minor = 0
             major += 1
         bot_version = f"{major}.{minor}.{patch}"
@@ -1120,8 +1690,7 @@ async def status_log():
 @status_log.before_loop
 async def before_status_log():
     await bot.wait_until_ready()
-        
-if __name__ == "__main__":
-    bot.run("TOKEN_HERE")
 
-   
+if __name__ == '__main__':
+    stay_alive()
+    bot.run(os.environ['DISCORD_TOKEN'])
