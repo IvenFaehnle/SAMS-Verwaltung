@@ -2117,7 +2117,7 @@ async def setup_reaction_roles():
 
     role_text = ""
     for emoji, role_name, role_id in role_info:
-        role_text += f"> {emoji} - <@&{role_id}>\n"
+        role_text += f"> {emoji} `-` <@&{role_id}>\n"
 
     embed.add_field(name="Verfügbare Rollen:", value=role_text, inline=False)
 
