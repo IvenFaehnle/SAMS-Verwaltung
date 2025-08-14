@@ -782,7 +782,7 @@ async def on_message(message: discord.Message):
                 ("🧠| Psychiatric Department", get_role_count("🧠| Psychiatric Department")),
                 ("🚁| Search and Resuce", get_role_count("🚁| Search and Resuce")),
                 ("🚤| SAR-Bootsausbildung", get_role_count("🚤| SAR-Bootsausbildung")),
-                ("Los Santos Medical Department", get_role_count("Los Santos Medical Department")),
+                ("San Andreas Medical Services", get_role_count("San Andreas Medical Services")),
                 ("🏝️ | Abgemeldet", get_role_count("🏝️ | Abgemeldet"))
             ],
             "Extras": [
