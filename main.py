@@ -1,7 +1,6 @@
 import discord
 import os
 from discord.ext import commands
-from server import stay_alive
 import asyncio
 import re
 from datetime import timedelta
