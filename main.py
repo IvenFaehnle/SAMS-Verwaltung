@@ -3564,6 +3564,131 @@ async def setup_application_system():
 
     print("✅ Application System eingerichtet!")
 
+async def setup_sams_info_embed():
+    """Setup SAMS info embed in the specified channel"""
+    channel = bot.get_channel(SAMS_INFO_CHANNEL_ID)
+    if not channel:
+        print("❌ SAMS Info Channel nicht gefunden!")
+        return
+
+    existing_message = None
+    try:
+        async for message in channel.history(limit=100):
+            if (message.author == bot.user and 
+                message.embeds and 
+                "San Andreas Medical Services" in message.embeds[0].title):
+                existing_message = message
+                break
+    except Exception as e:
+        print(f"Fehler beim Überprüfen vorhandener SAMS Info-Nachrichten: {e}")
+
+    if existing_message:
+        print("✅ SAMS Info Embed bereits vorhanden - kein neues Setup erforderlich!")
+        return
+
+    embed = discord.Embed(
+        title="🏥 Informationen über die San Andreas Medical Services",
+        description=(
+            "Wir sind die **staatliche Organisation**, wenn es um **zivile Hilfe** geht.\n"
+            "Egal ob **Schießerei**, **Unfall**, **Epidemie** oder **Unterstützung** – **wir sind da**."
+        ),
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(
+        name="📩 **Kontakt**",
+        value=(
+            "📧 **E-Mail:** `info@lsmd.fivenet.ls`\n"
+            "📍 **Hauptstandort:** PLZ 7011/7015, Los Santos\n"
+            "🌐 **Webseite:** *SAMS Wiki*"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🧑‍⚕️ **Führungsebene**",
+        value=(
+            "**Office of the Chief Medical Director**\n"
+            "*Verwaltung & strategische Leitung des SAMS*\n\n"
+            "• Dr. Kevin S. Gordon – Chief Medical Director\n"
+            "• Dr. Sam Hill – Deputy Chief Medical Director\n\n"
+            "**Commissioner**\n"
+            "*Verwaltung, Personalstrukturen & Organisation*\n\n"
+            "• Ben Schmit – Commissioner\n\n"
+            "**Spezialisierungsleitungen**\n\n"
+            "• Max Wolf – Captain of Search and Rescue\n"
+            "• Daniela Novan – Captain of Psychiatric Department\n"
+            "• Dr. Sam Hill – Captain of General Surgery of Los Santos\n"
+            "• Yannick Baum – Lieutenant of Medical Education Department"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🎓 **Titelgremium**",
+        value=(
+            "*Abnahme & Prüfung von Dr.- und Prof.-Titeln*\n"
+            "**Mitglieder:** Dr. Kevin S. Gordon · Dr. Fiona H. Knusper · Prof. Dr. Tobias Bergmann · Lucy Mitsch · Prof. Dr. Aiden Jones"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📰 **Presse & Öffentlichkeitsarbeit**",
+        value=(
+            "*Kommunikation mit Presse, Bürgern & externen Partnern*\n\n"
+            "• Ben Schmit\n"
+            "• Max Wolf"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📚 **Ausbildung & Bewerbung**",
+        value=(
+            "**Leitung:** Yannick Baum · Lea Majors\n\n"
+            "🗣 **Mündliche Bewerbungen:**\n"
+            "📅 Jeden **Freitag um 18:00 Uhr**\n"
+            "📍 SAMS Hauptgebäude, PLZ 7011/7015 Playa Vista\n\n"
+            "📝 **Schriftliche Bewerbungen:**\n"
+            "📌 Via Ticket im [Bewerbungs-Channel](https://discord.com/channels/906650031132672010/1201487339940220928)"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="⚠️ **Beschwerdeverfahren**",
+        value=(
+            "🎫 Ticket an die Führungsebene eröffnen\n"
+            "💬 Direkte Ansprache im Staat möglich"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="👍👎 **Feedback**",
+        value=(
+            "Feedback zu **Mitarbeitern & Organisation** im 👍👎-feedback Channel\n"
+            "*(Beschwerden bitte weiterhin über ein Ticket an die Führungsebene)*"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📜 **Hausordnung**",
+        value=(
+            "📄 Die aktuelle Hausordnung findest du hier:\n"
+            "🔗 [SAMS Hausordnung](https://fivenet.modernv.net/wiki/ambulance/147/hausordnung)"
+        ),
+        inline=False
+    )
+
+    try:
+        await channel.send(embed=embed)
+        print("✅ SAMS Info Embed eingerichtet!")
+    except Exception as e:
+        print(f"❌ Fehler beim Erstellen des SAMS Info Embeds: {e}")
+
 
 version_file = "version.txt"
 
