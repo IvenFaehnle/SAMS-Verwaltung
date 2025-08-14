@@ -1651,12 +1651,12 @@ async def setup_reaction_roles():
         ("1️⃣", "Modul 1 benötigt", 1341491722961682543),
         ("2️⃣", "Modul 2 benötigt", 1341491806734651514),
         ("3️⃣", "Modul 3 benötigt", 1341491907724972122),
-        ("🎓", "Interesse Medical Education", 1374491251482558545),
-        ("🥼", "Interesse General Surgery", 1374490464119554159),
-        ("🧠", "Interesse Psychiatric", 1374491124349141002),
-        ("🚁", "Interesse Search and Rescue", 1374490266706120845),
+        (":ausbildung:", "Interesse Medical Education", 1374491251482558545),
+        (":coat~1:", "Interesse General Surgery", 1374490464119554159),
+        (":psychatrie:", "Interesse Psychiatric", 1374491124349141002),
+        (":rettungsstaffel:", "Interesse Search and Rescue", 1374490266706120845),
         ("🚤", "Interesse SAR-Bootsausbildung", 1374505941038530663),
-        ("🚨", "Interesse Dispatch Operations", 1377037664087183420)
+        (":Alarm:", "Interesse Dispatch Operations", 1377037664087183420)
     ]
     
     role_text = ""
@@ -1667,7 +1667,7 @@ async def setup_reaction_roles():
     
     message = await channel.send(embed=embed)
     
-    reactions = ["1️⃣", "2️⃣", "3️⃣", "🎓", "🥼", "🧠", "🚁", "🚤", "🚨"]
+    reactions = ["1️⃣", "2️⃣", "3️⃣", ":ausbildung:", ":coat~1:", ":psychatrie:", ":rettungsstaffel:", "🚤", ":Alarm:"]
     for reaction in reactions:
         try:
             await message.add_reaction(reaction)
@@ -1690,12 +1690,12 @@ async def on_raw_reaction_add(payload):
         "1️⃣": 1341491722961682543,  
         "2️⃣": 1341491806734651514,  
         "3️⃣": 1341491907724972122,  
-        "🎓": 1374491251482558545, 
-        "🥼": 1374490464119554159,  
-        "🧠": 1374491124349141002,  
-        "🚁": 1374490266706120845,  
+        ":ausbildung:": 1374491251482558545, 
+        ":coat~1:": 1374490464119554159,  
+        ":psychatrie:": 1374491124349141002,  
+        ":rettungsstaffel:": 1374490266706120845,  
         "🚤": 1374505941038530663,  
-        "🚨": 1377037664087183420   
+        ":Alarm:": 1377037664087183420   
     }
     
     emoji = str(payload.emoji)
@@ -1736,12 +1736,12 @@ async def on_raw_reaction_remove(payload):
         "1️⃣": 1341491722961682543, 
         "2️⃣": 1341491806734651514,  
         "3️⃣": 1341491907724972122, 
-        "🎓": 1374491251482558545, 
-        "🥼": 1374490464119554159,  
-        "🧠": 1374491124349141002,  
-        "🚁": 1374490266706120845,  
+        ":ausbildung:": 1374491251482558545, 
+        ":coat~1:": 1374490464119554159,  
+        ":psychatrie:": 1374491124349141002,  
+        ":rettungsstaffel:": 1374490266706120845,  
         "🚤": 1374505941038530663,  
-        "🚨": 1377037664087183420  
+        ":Alarm:": 1377037664087183420  
     }
     
     emoji = str(payload.emoji)
