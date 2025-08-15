@@ -2966,7 +2966,7 @@ class PromotionRequestModal(discord.ui.Modal):
     )
 
     employment_start = discord.ui.TextInput(
-        label="Seit wann sind Sie beim LSMD angestellt:",
+        label="Seit wann sind Sie beim SAMS angestellt:",
         placeholder="[Hier eintragen]",
         required=True,
         max_length=200
@@ -2998,7 +2998,7 @@ class PromotionRequestModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         form_data = {
             "Name, Geburtsdatum": self.name_birth.value,
-            "Seit wann beim LSMD angestellt": self.employment_start.value,
+            "Seit wann beim SAMS angestellt": self.employment_start.value,
             "Letzte Beförderung": self.last_promotion.value,
             "Negative Vermerke": self.negative_remarks.value,
             "Dienstzeit seit letzter Beförderung": self.service_time.value
@@ -3025,14 +3025,14 @@ class ResignationRequestModal(discord.ui.Modal):
     )
 
     employment_start = discord.ui.TextInput(
-        label="Seit wann sind Sie beim LSMD angestellt:",
+        label="Seit wann sind Sie beim SAMS angestellt:",
         placeholder="[Hier eintragen]",
         required=True,
         max_length=200
     )
 
     resignation_reason = discord.ui.TextInput(
-        label="Wieso möchten Sie beim LSMD Kündigen:",
+        label="Wieso möchten Sie beim SAMS Kündigen:",
         placeholder="[Hier eintragen]",
         required=True,
         style=discord.TextStyle.paragraph,
@@ -3043,7 +3043,7 @@ class ResignationRequestModal(discord.ui.Modal):
         form_data = {
             "Name": self.name.value,
             "Geburtsdatum": self.birth_date.value,
-            "Seit wann beim LSMD angestellt": self.employment_start.value,
+            "Seit wann beim SAMS angestellt": self.employment_start.value,
             "Kündigungsgrund": self.resignation_reason.value
         }
         await create_ticket_channel(interaction, "kuendigungs_antrag", form_data)
@@ -3423,7 +3423,7 @@ async def setup_department_application_system():
         title="Erstelle eine Abteilungs-Bewerbung",
         description=(
             "🎓 **Medical Education – Bewerbung**\n"
-            "Du hast Lust, Leuten neue Dinge beizubringen und sehnst dich nach neuen Aufgaben und Zielen im Los Santos Medical Department? Dann bewirb dich hier für das Medical Education Department.\n\n"
+            "Du hast Lust, Leuten neue Dinge beizubringen und sehnst dich nach neuen Aufgaben und Zielen im San Andreas Medical Services? Dann bewirb dich hier für das Medical Education Department.\n\n"
 
             "🔪 **General Surgery – Bewerbung**\n"
             "Du hast Interesse an operativen Eingriffen und möchtest im OP aktiv sein? Dann bewirb dich hier für die General Surgery.\n\n"
@@ -3455,7 +3455,7 @@ class ApplicationView(discord.ui.View):
 
 class ApplicationModal(discord.ui.Modal):
     def __init__(self):
-        super().__init__(title="Bewerbung für das LSMD")
+        super().__init__(title="Bewerbung für das SAMS")
 
     name_birth_age_job = discord.ui.TextInput(
         label="IC Name, Geburtsdatum, Alter & Beruf:",
@@ -3529,7 +3529,7 @@ async def setup_application_system():
         async for message in channel.history(limit=100):
             if (message.author == bot.user and 
                 message.embeds and 
-                message.embeds[0].title == "Willkommen im Bewerbungsprozess des LSMD!"):
+                message.embeds[0].title == "Willkommen im Bewerbungsprozess des SAMS!"):
                 existing_message = message
                 break
     except Exception as e:
@@ -3540,14 +3540,14 @@ async def setup_application_system():
         return
 
     embed = discord.Embed(
-        title="Willkommen im Bewerbungsprozess des LSMD!",
+        title="Willkommen im Bewerbungsprozess des !",
         description=(
-            "## Mündliche Ausbildungen finden jeden Freitag um 18 Uhr am LSMD bei der Postleitzahl 7011/7015 statt!\n\n"
+            "## Mündliche Ausbildungen finden jeden Freitag um 18 Uhr am Krankenhaus bei der Postleitzahl 7011/7015 statt!\n\n"
             "Um eine **schriftliche Bewerbung** abzusenden klicken Sie unter dieser Nachricht auf das Feld des Bots.\n"
             "Es gelten folgende Richtlinien:\n\n"
             "## Richtlinien für Bewerbungen - Bewerber\n"
             "- Straffreiheit seit min. 2 Wochen\n"
-            "- Kein eingetragenes Hausverbot auf dem LSMD Discord.\n"
+            "- Kein eingetragenes Hausverbot auf dem SAMS Discord.\n"
             "- **Vor** Absenden des Tickets **spätestens** nach Erstellung muss der **Discord Nickname** auf den **IC-Namen** geändert werden.\n"
             " - Bei Nicht-Einhaltung kann das Ticket kommentarlos geschlossen werden.\n"
             "- Bei unangebrachtem Verhalten des Bewerbers schließen wir das Ticket und verhängen eine Sperrfrist von min. 1 Woche.\n"
@@ -3599,7 +3599,7 @@ async def setup_sams_info_embed():
     embed.add_field(
         name="📩 **Kontakt**",
         value=(
-            "📧 **E-Mail:** `info@lsmd.fivenet.ls`\n"
+            "📧 **E-Mail:** `info@sams.fivenet.ls`\n"
             "📍 **Hauptstandort:** PLZ 7011/7015, Los Santos\n"
             "🌐 **Webseite:** *SAMS Wiki*"
         ),
