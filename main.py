@@ -3756,5 +3756,4 @@ async def before_status_log():
     await bot.wait_until_ready()
 
 if __name__ == '__main__':
-    stay_alive()
     bot.run(os.environ['DISCORD_TOKEN'])
